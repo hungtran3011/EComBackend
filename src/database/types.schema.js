@@ -13,3 +13,11 @@ export const Variants = mongoose.SchemaType([{
   id: {type: String, required: true},
   name: {type: String, required: true},
 }])
+
+export const CartItem = mongoose.Schema({
+  product: {type: String, required: true},
+  quantity: {type: Number, required: true},
+  voucher: {type: String, required: false},
+  note: {type: String, required: false},
+  unitPrice: {type: Number, required: true},
+})

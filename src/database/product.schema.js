@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import * as types from "./types.js"
+import * as types from "./types.schema.js"
 
 /**
  * @name User
