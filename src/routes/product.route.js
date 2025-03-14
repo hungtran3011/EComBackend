@@ -1,24 +1,25 @@
 import { Router } from "express";
 import {ProductControllers} from "../controllers/product.controller.js"
+import {userMiddleware} from "../middleware/user.middleware.js";
 
 const router = Router();
 
 router.route("/products")
-  .get((req, res) => ProductControllers.getAllProducts(req, res))
-  .post((req, res) => ProductControllers.createProduct(req, res));
+  .get(ProductControllers.getAllProducts)
+  .post(userMiddleware, ProductControllers.createProduct);
 
 router.route("/products/:id")
-  .get((req, res) => ProductControllers.getProductById(req, res))
-  .put((req, res) => ProductControllers.updateProduct(req, res))
-  .delete((req, res) => ProductControllers.deleteProduct(req, res));
+  .get(ProductControllers.getProductById)
+  .put(userMiddleware, ProductControllers.updateProduct)
+  .delete(userMiddleware, ProductControllers.deleteProduct);
 
 router.route("/categories")
-  .get((req, res) => ProductControllers.getAllCategories(req, res))
-  .post((req, res) => ProductControllers.createCategory(req, res));
+  .get(ProductControllers.getAllCategories)
+  .post(userMiddleware, ProductControllers.createCategory);
 
 router.route("/categories/:id")
-  .get((req, res) => ProductControllers.getCategoryById(req, res))
-  .put((req, res) => ProductControllers.updateCategory(req, res))
-  .delete((req, res) => ProductControllers.deleteCategory(req, res));
+  .get(ProductControllers.getCategoryById)
+  .put(userMiddleware, ProductControllers.updateCategory)
+  .delete(userMiddleware, ProductControllers.deleteCategory);
 
 export {router as ProductRouter};
