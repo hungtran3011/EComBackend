@@ -7,21 +7,14 @@ import {ProductSchema} from "product.schema.js";
  * @typedef {Object} StorageItem
  * @property {mongoose.Schema.Types.ObjectId} product - Tham chiếu đến sản phẩm
  * @property {Number} quantity - Số lượng sản phẩm
- * @property {Date} createdAt - Ngày tạo
- * @property {Date} updatedAt - Ngày cập nhật
+ * @property {Date} createdAt - Ngày tạo (tự động)
+ * @property {Date} updatedAt - Ngày cập nhật (tự động)
+ * @property {mongoose.Schema.Types.ObjectId} _id - ID của StorageItem (tự động)
  */
 export const StorageItemSchema = mongoose.Schema({
   product: {type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true},
   quantity: {type: Number, required: true},
-  createdAt: {type: Date, default: Date.now},
-  updatedAt: {type: Date, default: Date.now},
-})
-
-// Update the updatedAt timestamp on save
-StorageItemSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+}, {timestamps: true})
 
 /**
  * @name StorageItemModel
@@ -32,12 +25,4 @@ export const StorageItemModel = mongoose.model('StorageItem', StorageItemSchema)
 
 export const StorageSchema = mongoose.Schema({
   items: [StorageItemSchema],
-  createdAt: {type: Date, default: Date.now},
-  updatedAt: {type: Date, default: Date.now},
-})
-
-// Update the updatedAt timestamp on save
-StorageSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+}, {timestamps: true})

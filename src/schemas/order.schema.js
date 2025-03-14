@@ -21,7 +21,7 @@ export const OrderItemSchema = mongoose.Schema({
   unitPrice: {type: Number, required: true},
   deliveryDate: {type: Date, required: true},
   deliveryFee: {type: Number, required: true},
-})
+}, {timestamps: true})
 
 /**
  * @name OrderItemModel
@@ -43,24 +43,71 @@ export const OrderItemModel = mongoose.model("OrderItem", OrderItemSchema);
  * @type {mongoose.Schema}
  * @property {Array<OrderItem>} items - Danh sách sản phẩm trong đơn hàng
  * @property {mongoose.Schema.Types.ObjectId} user - Tham chiếu đến dữ liệu người dùng
+ * @property {String} status - Trạng thái của đơn hàng
+ * - `pending`: Chờ xử lý
+ * - `processing`: Đang xử lý
+ * - `shipped`: Đã giao hàng
+ * - `delivered`: Đã nhận hàng
+ * - `cancelled`: Đã hủy
+ * @property {Object} shippingAddress - Địa chỉ giao hàng
+ * @property {String} shippingAddress.home - Số nhà
+ * @property {String} shippingAddress.street - Tên đường
+ * @property {String} shippingAddress.city - Thành phố
+ * @property {String} shippingAddress.state - Tiểu bang/Tỉnh (không bắt buộc)
+ * @property {String} shippingAddress.zip - Mã bưu điện
+ * @property {String} shippingAddress.country - Quốc gia
+ * @property {Object} paymentDetails - Chi tiết thanh toán
+ * @property {String} paymentDetails.method - Phương thức thanh toán
+ * - `cash`: Thanh toán bằng tiền mặt
+ * - `card`: Thanh toán bằng thẻ
+ * - `paypal`: Thanh toán qua PayPal
+ * - `stripe`: Thanh toán qua Stripe
+ * - `momo`: Thanh toán qua MoMo
+ * - `zalo`: Thanh toán qua ZaloPay
+ * - `bank`: Thanh toán qua ngân hàng
+ * @property {String} paymentDetails.transactionId - Mã giao dịch (không bắt buộc)
+ * @property {Number} totalAmount - Tổng số tiền của đơn hàng, phải lớn hơn hoặc bằng 0
  */
 export const OrderSchema = mongoose.Schema({  
-  items: [OrderItem],  
+  items: [OrderItemSchema],  
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },  
-  status: { type: String, required: true, default: 'pending' },  
+  status: { 
+    type: String, 
+    required: true, 
+    enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
+    default: 'pending' 
+  },  
   shippingAddress: {  
+    home: { type: String, required: true },
     street: { type: String, required: true },  
     city: { type: String, required: true },  
-    state: { type: String, required: true },  
+    state: { type: String, required: false },  
     zip: { type: String, required: true },  
     country: { type: String, required: true }  
   },  
   paymentDetails: {  
-    method: { type: String, required: true },  
+    method: { 
+      type: String, 
+      required: true,
+      enum: [
+        'cash', 
+        'card', 
+        'paypal', 
+        'stripe', 
+        'momo', 
+        'zalo', 
+        'bank'
+      ] 
+    },  
     transactionId: { type: String, required: false }  
   },  
-  orderDate: { type: Date, default: Date.now },  
-  totalAmount: { type: Number, required: true }  
-});  
+  totalAmount: { type: Number, required: true, min: 0 },
 
+}, {timestamps: true});  
+
+/**
+ * @name OrderModel
+ * @type {mongoose.Model}
+ * @description Model cho OrderSchema, cho phép thực hiện các thao tác CRUD trên Order
+ */
 export const OrderModel = mongoose.model('Order', OrderSchema);

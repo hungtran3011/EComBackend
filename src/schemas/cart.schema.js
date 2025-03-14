@@ -3,6 +3,7 @@ import { CartItem } from "./types.schema.js";
 
 /**
  * @name Cart
+ * @author hungtran3011
  * @description A user's shopping cart containing items they intend to purchase
  * @typedef {Object} Cart
  * @property {Array<CartItem>} items - Array of cart items
@@ -13,14 +14,6 @@ import { CartItem } from "./types.schema.js";
 const Cart = mongoose.Schema({
   items: [CartItem],
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-});
-
-// Update the updatedAt timestamp on save
-Cart.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
+}, {timestamps: true});
 
 export default mongoose.model('Cart', Cart);

@@ -3,14 +3,19 @@ import * as types from "./types.schema.js"
 
 /**
  * @name User
+ * @author @hungtran3011
  * @description Người dùng đăng nhập, có thể là khách hàng hoặc Admin. Nếu là Admin, có thển CRUD hệ thống, còn nếu là khách hàng, có thể sẽ được tối ưu hoá và cá nhân hoá trải nghiệm (nếu điều kiện cho phép) như mã giảm giá hoặc sự kiện riêng. Với 
  * @typedef {Object} User
- * @property {String} name
- * @property {String} email
- * @property {String} phoneNumber
- * @property {String} password
- * @property {String} role
- * @property {Boolean} isVerified
+ * @property {String} name Tên người dùng
+ * @property {String} email Email người dùng
+ * @property {String} phoneNumber Số điện thoại
+ * @property {String} password Mật khẩu, nếu có phải được mã hoá cẩn thận
+ * @property {String} role Vai trò của người dùng, có thể là 
+ * - `customer`: Khách hàng
+ * - `admin`: Quản trị viên
+ * - `anon`: Người dùng ẩn danh
+ * @property {Boolean} isRegistered
+ * @property {Date} createdAt
  */
 const User = mongoose.Schema({
   name: { type: String, required: true },
@@ -18,8 +23,8 @@ const User = mongoose.Schema({
   phoneNumber: { type: String, required: true },
   password: { type: String, required: false },
   role: { type: String, required: true, enum: ['customer', 'admin', 'anon'], default: 'anon' },
-  isVerified: { type: Boolean, default: false },
-})
+  isRegistered: { type: Boolean, default: false },
+}, {timestamps: true})
 
 // /**
 //  * @name AnonymousUser
