@@ -1,8 +1,8 @@
 import { Router } from "express";
 
-import UserControllers from "../controllers/user.controller";
-import { userMiddleware } from "../middleware/user.middleware";
-import { IPRateLimiter } from "../config/rate-limit";
+import UserControllers from "../controllers/user.controller.js";
+import { userMiddleware } from "../middleware/user.middleware.js";
+import { IPRateLimiter } from "../config/rate-limit.js";
 
 const router = Router()
 

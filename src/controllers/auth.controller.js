@@ -1,4 +1,4 @@
-import { User } from "../schemas/user.schema";
+import { User } from "../schemas/user.schema.js";
 
 /**
  * @name registerUser
@@ -128,10 +128,12 @@ const handleLogout = (req, res) => {
     })
 }
 
-export default AuthControllers = {
+const AuthControllers = {
   registerUser,
   signIn,
   handleRefreshToken,
   handleLogout
 }
+
+export default AuthControllers
 

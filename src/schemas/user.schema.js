@@ -1,5 +1,4 @@
 import mongoose, { model } from "mongoose";
-import * as types from "./types.schema.js"
 
 /**
  * @name User

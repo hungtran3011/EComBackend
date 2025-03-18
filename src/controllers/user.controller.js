@@ -1,6 +1,5 @@
-import mongoose, { mongo } from "mongoose";
-import { User } from "../schemas/user.schema";
-import bcrypt from "bcrypt";
+import mongoose from "mongoose";
+import { User } from "../schemas/user.schema.js";
 import { config } from "dotenv";
 
 config()
@@ -109,7 +108,6 @@ const UserControllers = {
   getAllUsers,
   getUserById,
   createNonRegisteredUser,
-  registerUser,
   updateUser,
   deleteUser,
 };
