@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import ProductModel from "../schemas/product.schema.js";
+import {ProductModel} from "../schemas/product.schema.js";
 
 const getAllProducts = async (req, res) => {
   try {
