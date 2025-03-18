@@ -1,5 +1,5 @@
-import { IPRateLimiter } from "../config/rate-limit"
-import AuthControllers from "../controllers/auth.controller"
+import { IPRateLimiter } from "../config/rate-limit.js"
+import AuthControllers from "../controllers/auth.controller.js"
 import { Router } from "express"
 
 const router = Router()
