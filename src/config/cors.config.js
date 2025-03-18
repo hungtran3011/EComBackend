@@ -4,7 +4,7 @@ const whiteList = [
   "https://myapp.com"
 ];
 
-const corsOptions = {
+export const corsOptions = {
   origin: function (origin, callback) {
     if (whiteList.indexOf(origin) !== -1 || !origin) {
       callback(null, true);

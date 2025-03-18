@@ -5,17 +5,25 @@ import mongoose from "mongoose";
 import morgan from "morgan";
 import fs from 'fs';
 import path from "path";
+import { fileURLToPath } from 'url';
 
-import router from "./routes/product.route.js";
 import { corsOptions } from "./config/cors.config.js";
+import { ProductRouter } from "./routes/product.route.js";
 
+// Create __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 config();
+
+// Create logs directory if it doesn't exist
+const logDirectory = path.join(__dirname, "logs");
+fs.existsSync(logDirectory) || fs.mkdirSync(logDirectory, { recursive: true });
 
 const app = express();
 const port = process.env.PORT || 3001;
 
-const queryString = process.env.MONGO_READ_URI;
+const queryString = process.env.MONGO_READ_WRITE_URI;
 
 mongoose.connect(queryString).then(() => {
   console.log("Connected to MongoDB");
@@ -29,11 +37,12 @@ app.use(morgan('dev', {
   skip: function (req, res) { return res.statusCode < 400 }
 }))
 
-app.use(morgan("combined"), {
+// Fix morgan configuration syntax
+app.use(morgan("combined", {
   stream: fs.createWriteStream(path.join(__dirname, "logs", "access.log"), {
     flags: "a"
   })
-});
+}));
 
 app.use(cors(corsOptions));
 
@@ -41,7 +50,7 @@ app.get("/", (req, res) => {
   res.json({ message: "Hello World" });
 })
 
-app.use("/products", router);
+app.use("/products", ProductRouter);
 
 app.listen(port, () => {
   console.log(`Server running on port ${process.env.PORT}`);
