@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 import { corsOptions } from "./config/cors.config.js";
 import { MainRouter } from "./routes/index.js";
-import { IPRateLimiter } from "./config/rate-limit.js";
+import swaggerDocs from "./swagger.js";
 
 
 // Create __dirname equivalent for ES modules
@@ -68,3 +68,5 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 })
+
+swaggerDocs(app, port);

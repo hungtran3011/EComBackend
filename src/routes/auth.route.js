@@ -4,7 +4,7 @@ import { Router } from "express"
 
 const router = Router()
 
-router.get("/sign-in",IPRateLimiter, AuthControllers.signIn)
+router.post("/sign-in",IPRateLimiter, AuthControllers.signIn)
 
 router.post("/sign-up", IPRateLimiter, AuthControllers.registerUser)
 
