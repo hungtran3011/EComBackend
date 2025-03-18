@@ -28,11 +28,15 @@ const registerUser = async (req, res) => {
       email,
       phoneNumber,
       hashedPassword,
-      address
-    })
+      address,
+      isRegistered: true,
+      role: "user" // Set appropriate role for registered users
+    });
     await newUser.save();
-    delete newUser.hashedPassword;
-    res.status(201).json(newUser);
+    // Convert to plain object and remove hashedPassword
+    const userResponse = newUser.toObject();
+    delete userResponse.hashedPassword;
+    res.status(201).json(userResponse);
   }
   catch (e) {
     res.status(500).json({ message: e.message });
