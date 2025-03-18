@@ -2,12 +2,10 @@ import { Router } from "express";
 import { userMiddleware } from "../middleware/user.middleware";
 import OrderControllers from "../controllers/order.controller";
 
-const route = Router()
+const router = Router()
 
-route.get("/order", userMiddleware, (req, res) => {
-  res.send("Order route")
-})
+router.get("/order", userMiddleware, OrderControllers.getAllOrders)
 
-route.get("/order/:id", userMiddleware, (req, res) => {
+router.get("/order/:id", userMiddleware, (req, res) => {
   res.send("Order route")
 })

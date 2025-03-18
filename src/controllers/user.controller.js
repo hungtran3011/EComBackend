@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { User, User } from "../schemas/user.schema";
 import bcrypt from "bcrypt"
+import jwt from "jsonwebtoken";
 
 const getAllUsers = async (req, res) => { }
 
@@ -8,10 +9,20 @@ const getUserById = async (req, res) => {
 
 }
 
+/**
+ * @name registerUser
+ * @author @hungtran3011
+ * @description Đăng ký người dùng mới, cho phép sử dụng số điện thoại hoặc email để đăng nhập
+ * Xác thực bằng mật khẩu, sau này có thể thêm xác thực 2 yếu tố như mail hay authenticate app
+ * Có thể thêm các thông tin khác như địa chỉ
+ * @summary Đăng ký người dùng mới
+ * @param {*} req 
+ * @param {*} res 
+ */
 const registerUser = async (req, res) => {
   try {
     const { name, email, phoneNumber, password, address } = req.body;
-    const existedUser = User.findOne([
+    const existedUser = await User.findOne([
       "$or", [
         { email },
         { phoneNumber }
@@ -65,7 +76,7 @@ const createNonRegisteredUser = async (req, res) => {
 const signIn = async (req, res) => {
   try{
     const {email, phoneNumber, password} = req.body;
-    const user = User.findOne([
+    const user = await User.findOne([
       "$or", [
         {email},
         {phoneNumber}
@@ -76,7 +87,14 @@ const signIn = async (req, res) => {
     }
     const isValidPassword = await bcrypt.compare(password, user.hashedPassword);
     if (isValidPassword){
-      
+      const accessToken = jwt.sign({
+        "username": user.email || user.phoneNumber,
+        "role": user.role
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: "1h"
+      });
     }
   }
   catch (e) {
@@ -94,6 +112,7 @@ const UserControllers = {
   createNonRegisteredUser,
   registerUser,
   updateUser,
+  signIn,
   deleteUser,
 };
 
