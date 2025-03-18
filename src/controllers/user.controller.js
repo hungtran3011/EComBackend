@@ -55,12 +55,12 @@ const createNonRegisteredUser = async (req, res) => {
       isRegistered: false,
       role: "anon"
     });
-    const existedUser = await User.findOne([
-      "$or", [
+    const existedUser = await User.findOne({
+      $or: [
         { email },
         { phoneNumber }
       ]
-    ])
+    });
     if (existedUser) {
       return res.status(400).json({ message: "User already exists" });
     }
