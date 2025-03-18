@@ -94,8 +94,11 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => { 
   try{
     const {id} = req.params;
-    await User.findOneAndDelete({_id: id});
-    res.status(204).json({message: `User ${id} deleted`});
+    const deletedUser = await User.findOneAndDelete({_id: id});
+    if (!deletedUser) {
+      return res.status(404).json({message: "User not found"});
+    }
+    return res.status(204).send();
   }
   catch (e) {
     res.status(500).json({message: e.message});
