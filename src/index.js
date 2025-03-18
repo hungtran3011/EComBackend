@@ -48,7 +48,6 @@ app.use(morgan("combined", {
 }));
 
 app.use(cors(corsOptions));
-app.use(IPRateLimiter); // Apply rate limiting middleware
 
 app.get("/", (req, res) => {
   res.json({ message: "Server is healthy" });
