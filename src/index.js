@@ -2,10 +2,13 @@ import express from "express";
 import { config } from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
-import router from "./routes/product.route.js";
+import morgan from "morgan";
+import fs from 'fs';
+import path from "path";
 
-import logger from "./middleware/log.middleware.js";
+import router from "./routes/product.route.js";
 import { corsOptions } from "./middleware/cors.middleware.js";
+
 
 config();
 
@@ -22,7 +25,15 @@ mongoose.connect(queryString).then(() => {
 
 app.use(express.urlencoded({ extended: false }))
 
-app.use(logger("access.log"));
+app.use(morgan('dev', {
+  skip: function (req, res) { return res.statusCode < 400 }
+}))
+
+app.use(morgan("combined"), {
+  stream: fs.createWriteStream(path.join(__dirname, "logs", "access.log"), {
+    flags: "a"
+  })
+});
 
 app.use(cors(corsOptions));
 

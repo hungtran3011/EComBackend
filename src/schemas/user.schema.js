@@ -1,41 +1,48 @@
-import mongoose from "mongoose";
+import mongoose, { model } from "mongoose";
 import * as types from "./types.schema.js"
 
 /**
  * @name User
  * @author @hungtran3011
- * @description Người dùng đăng nhập, có thể là khách hàng hoặc Admin. Nếu là Admin, có thển CRUD hệ thống, còn nếu là khách hàng, có thể sẽ được tối ưu hoá và cá nhân hoá trải nghiệm (nếu điều kiện cho phép) như mã giảm giá hoặc sự kiện riêng. Với 
+ * @description Định nghĩa 1 user, có thể không hoặc có đăng ký tài khoản. 
+ * Việc cho phép lưu trữ người dùng (người mua) không đăng ký tài khoản
+ * sẽ giúp ích cho cửa hàng khi cần track khách nào mua hàng gì cũng như
+ * các chính sách bảo hành và khuyến mãi. Các khách hàng được đăng ký có thể
+ * sẽ được cá nhân hoá tốt hơn (nếu hệ thống cho phép)
  * @typedef {Object} User
  * @property {String} name Tên người dùng
- * @property {String} email Email người dùng
- * @property {String} phoneNumber Số điện thoại
- * @property {String} password Mật khẩu, nếu có phải được mã hoá cẩn thận
- * @property {String} role Vai trò của người dùng, có thể là 
- * - `customer`: Khách hàng
- * - `admin`: Quản trị viên
- * - `anon`: Người dùng ẩn danh
- * @property {Boolean} isRegistered
- * @property {Date} createdAt
+ * @property {String} email Email người dùng (bắt buộc đối với người dùng đã đăng ký)
+ * @property {String} phoneNumber Số điện thoại (bắt buộc đối với tất cả người dùng)
+ * @property {String} password Mật khẩu (chỉ cho người dùng đã đăng ký). Mã hoá mật khẩu trước khi lưu
+ * @property {Object} address Địa chỉ giao hàng của người dùng, bao gồm
+ * - `homeNumber`: Số nhà
+ * - `street`: tên đường
+ * - `city`: Thành phố
+ * - `district`: quận
+ * - `state`: Bang
+ * - `province`: tỉnh 
+ * @property {String} role Vai trò người dùng: 'customer', 'admin', hoặc 'anon'
+ * @property {Boolean} isRegistered Cho biết người dùng đã đăng ký hay chưa
+ * @property {Date} createdAt Thời gian tạo
  */
 const User = mongoose.Schema({
   name: { type: String, required: true },
-  email: { type: String, required: true },
+  email: { type: String, required: false },
   phoneNumber: { type: String, required: true },
-  password: { type: String, required: false },
+  password: { type: String, required: function() { return this.isRegistered; } },
+  address: {
+    homeNumber: {type: String, required: false},
+    street: { type: String, required: false },
+    district: {type: String, required: false},
+    city: { type: String, required: false },
+    state: { type: String, required: false },
+    province: { type: String, required: false }
+  },
   role: { type: String, required: true, enum: ['customer', 'admin', 'anon'], default: 'anon' },
   isRegistered: { type: Boolean, default: false },
-}, {timestamps: true})
+}, {timestamps: true}) 
 
-// /**
-//  * @name AnonymousUser
-//  * @description Đa phần người dùng sẽ là như thế này, với số điện thoại và email có thể dùng để liên lạc khi đặt hàng online. Hệ thống sẽ cần phải chuyển đổi thông tin của AnonymousUser sang User nếu người dùng này đăng ký tài khoản (theo số điện thoại hoặc email, hoặc cả hai).
-//  * @typedef {Object} AnonymousUser
-//  * @property {String} email 
-//  * @property {String} phoneNumber
-//  * @property {String} name
-//  */
-// const AnonymousUser = mongoose.Schema({
-//   email: { type: String, required: true },
-//   phoneNumber: { type: String, required: true },
-//   name: { type: String, required: true },
-// })
+const UserModel = mongoose.model("User", User);
+
+export {UserModel as User};
+
