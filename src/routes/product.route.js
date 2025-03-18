@@ -6,7 +6,7 @@ import { IPRateLimiter } from "../config/rate-limit.js";
 const router = Router();
 
 router.route("/")
-  .get(ProductControllers.getAllProducts)
+  .get(IPRateLimiter, ProductControllers.getAllProducts)
   .post(IPRateLimiter, userMiddleware, ProductControllers.createProduct);
 
 router.route("/:id")
