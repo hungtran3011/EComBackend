@@ -12,6 +12,7 @@ import { ProductRouter } from "./routes/product.route.js";
 import { UserRouter } from "./routes/user.route.js";
 import { IPRateLimiter } from "./config/rate-limit.js";
 
+
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
