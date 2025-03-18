@@ -6,7 +6,7 @@ import { IPRateLimiter } from "../config/rate-limit";
 
 const router = Router()
 
-router.get("/user", userMiddleware, IPRateLimiter, UserControllers.getAllUsers)
+router.get("/user", IPRateLimiter, userMiddleware, UserControllers.getAllUsers)
 
 router
   .get("/user/:id", userMiddleware, (req, res) => {
