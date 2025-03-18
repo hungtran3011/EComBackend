@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from "path";
 
 import router from "./routes/product.route.js";
-import { corsOptions } from "./middleware/cors.middleware.js";
+import { corsOptions } from "./config/cors.config.js";
 
 
 config();
