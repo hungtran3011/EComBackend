@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import { corsOptions } from "./config/cors.config.js";
 import { ProductRouter } from "./routes/product.route.js";
 
+
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
