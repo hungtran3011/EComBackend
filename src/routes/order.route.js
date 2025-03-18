@@ -4,8 +4,10 @@ import OrderControllers from "../controllers/order.controller";
 
 const router = Router()
 
-router.get("/order", userMiddleware, OrderControllers.getAllOrders)
+router.get("/", userMiddleware, OrderControllers.getAllOrders)
 
-router.get("/order/:id", userMiddleware, (req, res) => {
+router.get("/:id", userMiddleware, (req, res) => {
   res.send("Order route")
 })
+
+export {router as OrderRouter}

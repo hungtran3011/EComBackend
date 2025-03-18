@@ -5,17 +5,17 @@ import { IPRateLimiter } from "../config/rate-limit.js";
 
 const router = Router();
 
-router.route("/products")
+router.route("/")
   .get(IPRateLimiter, ProductControllers.getAllProducts)
   .post(userMiddleware, ProductControllers.createProduct);
 
-router.route("/products/:id")
+router.route("/:id")
   .get(ProductControllers.getProductById)
   .put(userMiddleware, ProductControllers.updateProduct)
   .delete(userMiddleware, ProductControllers.deleteProduct);
 
 router.route("/categories")
-  .get(ProductControllers.getAllCategories)
+  .get(IPRateLimiter, ProductControllers.getAllCategories)
   .post(userMiddleware, ProductControllers.createCategory);
 
 router.route("/categories/:id")

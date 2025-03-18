@@ -1,6 +1,44 @@
 import { User } from "../schemas/user.schema";
 
 /**
+ * @name registerUser
+ * @author hungtran3011
+ * @description Đăng ký người dùng mới, cho phép sử dụng số điện thoại hoặc email để đăng nhập
+ * Xác thực bằng mật khẩu, sau này có thể thêm xác thực 2 yếu tố như mail hay authenticate app
+ * Có thể thêm các thông tin khác như địa chỉ
+ * @summary Đăng ký người dùng mới
+ * 
+ */
+const registerUser = async (req, res) => {
+  try {
+    const { name, email, phoneNumber, password, address } = req.body;
+    const existedUser = await User.findOne([
+      "$or", [
+        { email },
+        { phoneNumber }
+      ], "$and", { isRegistered: false }
+    ])
+    if (existedUser) {
+      res.status(400).json({ message: "User already exists" });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({
+      name,
+      email,
+      phoneNumber,
+      hashedPassword,
+      address
+    })
+    await newUser.save();
+    delete newUser.hashedPassword;
+    res.status(201).json(newUser);
+  }
+  catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+}
+
+/**
  * @name signIn
  * @author hungtran3011
  * @description Đăng nhập người dùng đã đăng ký tài khoản, trả về access token và refresh token
@@ -86,7 +124,9 @@ const handleLogout = (req, res) => {
 }
 
 export default AuthControllers = {
+  registerUser,
   signIn,
   handleRefreshToken,
+  handleLogout
 }
 

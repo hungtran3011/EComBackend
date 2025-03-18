@@ -36,44 +36,6 @@ const getUserById = async (req, res) => {
 }
 
 /**
- * @name registerUser
- * @author hungtran3011
- * @description Đăng ký người dùng mới, cho phép sử dụng số điện thoại hoặc email để đăng nhập
- * Xác thực bằng mật khẩu, sau này có thể thêm xác thực 2 yếu tố như mail hay authenticate app
- * Có thể thêm các thông tin khác như địa chỉ
- * @summary Đăng ký người dùng mới
- * 
- */
-const registerUser = async (req, res) => {
-  try {
-    const { name, email, phoneNumber, password, address } = req.body;
-    const existedUser = await User.findOne([
-      "$or", [
-        { email },
-        { phoneNumber }
-      ], "$and", { isRegistered: false }
-    ])
-    if (existedUser) {
-      res.status(400).json({ message: "User already exists" });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({
-      name,
-      email,
-      phoneNumber,
-      hashedPassword,
-      address
-    })
-    await newUser.save();
-    delete newUser.hashedPassword;
-    res.status(201).json(newUser);
-  }
-  catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-}
-
-/**
  * @name createNonRegisteredUser
  * @author hungtran3011
  * @description Tạo một người dùng mới trong hệ thống bán hàng mà không cần đăng ký tài khoản
