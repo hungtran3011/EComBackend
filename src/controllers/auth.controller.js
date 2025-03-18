@@ -12,14 +12,15 @@ import { User } from "../schemas/user.schema";
 const registerUser = async (req, res) => {
   try {
     const { name, email, phoneNumber, password, address } = req.body;
-    const existedUser = await User.findOne([
-      "$or", [
+    const existedUser = await User.findOne({
+      $or: [
         { email },
         { phoneNumber }
-      ], "$and", { isRegistered: false }
-    ])
+      ],
+      isRegistered: false
+    });
     if (existedUser) {
-      res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "User already exists" });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
