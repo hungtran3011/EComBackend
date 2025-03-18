@@ -29,7 +29,7 @@ const User = mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: false },
   phoneNumber: { type: String, required: true },
-  password: { type: String, required: () => this.isRegistered },
+  password: { type: String, required: function() {return this.isRegistered} },
   address: {
     homeNumber: {type: String, required: false},
     street: { type: String, required: false },
@@ -40,7 +40,7 @@ const User = mongoose.Schema({
   },
   role: { type: String, required: true, enum: ['customer', 'admin', 'anon'], default: 'anon' },
   isRegistered: { type: Boolean, default: false },
-  refreshToken: { type: String, required: () => this.isRegistered },
+  refreshToken: { type: String, required: function() {return this.isRegistered} },
 }, {timestamps: true}) 
 
 const UserModel = mongoose.model("User", User);
