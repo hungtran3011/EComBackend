@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url';
 
 import { corsOptions } from "./config/cors.config.js";
 import { ProductRouter } from "./routes/product.route.js";
+import { UserRouter } from "./routes/user.route.js";
+import { IPRateLimiter } from "./config/rate-limit.js";
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);

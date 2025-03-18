@@ -1,11 +1,12 @@
 import { Router } from "express";
 import ProductControllers from "../controllers/product.controller.js"
 import {userMiddleware} from "../middleware/user.middleware.js";
+import { IPRateLimiter } from "../config/rate-limit.js";
 
 const router = Router();
 
 router.route("/products")
-  .get(ProductControllers.getAllProducts)
+  .get(IPRateLimiter, ProductControllers.getAllProducts)
   .post(userMiddleware, ProductControllers.createProduct);
 
 router.route("/products/:id")
