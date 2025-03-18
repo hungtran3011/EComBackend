@@ -9,16 +9,16 @@ const router = Router()
 router.get("/user", IPRateLimiter, userMiddleware, UserControllers.getAllUsers)
 
 router
-  .get("/user/:id", userMiddleware, (req, res) => {
+  .get("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .post("/user/:id", userMiddleware, (req, res) => {
+  .post("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .put("/user/:id", userMiddleware, (req, res) => {
+  .put("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .delete("/user/:id", userMiddleware, (req, res) => {
+  .delete("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
 

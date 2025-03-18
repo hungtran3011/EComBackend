@@ -7,7 +7,7 @@ const router = Router()
 
 router.route("/")
   .get(IPRateLimiter, userMiddleware, CartControllers.getAllUserCart)
-  .post(userMiddleware, CartControllers.addToCart)
-  .delete(userMiddleware, CartControllers.deleteCartItem)
+  .post(IPRateLimiter, userMiddleware, CartControllers.addToCart)
+  .delete(IPRateLimiter, userMiddleware, CartControllers.deleteCartItem)
 
 export {router as CartRouter}
