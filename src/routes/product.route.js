@@ -6,21 +6,21 @@ import { IPRateLimiter } from "../config/rate-limit.js";
 const router = Router();
 
 router.route("/")
-  .get(IPRateLimiter, ProductControllers.getAllProducts)
+  .get(ProductControllers.getAllProducts)
   .post(IPRateLimiter, userMiddleware, ProductControllers.createProduct);
 
 router.route("/:id")
-  .get(IPRateLimiter, ProductControllers.getProductById)
-  .put(userMiddleware, ProductControllers.updateProduct)
-  .delete(userMiddleware, ProductControllers.deleteProduct);
+  .get(ProductControllers.getProductById)
+  .put(IPRateLimiter, userMiddleware, ProductControllers.updateProduct)
+  .delete(IPRateLimiter, userMiddleware, ProductControllers.deleteProduct);
 
 router.route("/categories")
   .get(IPRateLimiter, ProductControllers.getAllCategories)
-  .post(userMiddleware, ProductControllers.createCategory);
+  .post(IPRateLimiter, userMiddleware, ProductControllers.createCategory);
 
 router.route("/categories/:id")
-  .get(IPRateLimiter, ProductControllers.getCategoryById)
-  .put(userMiddleware, ProductControllers.updateCategory)
-  .delete(userMiddleware, ProductControllers.deleteCategory);
+  .get(ProductControllers.getCategoryById)
+  .put(IPRateLimiter, userMiddleware, ProductControllers.updateCategory)
+  .delete(IPRateLimiter, userMiddleware, ProductControllers.deleteCategory);
 
 export {router as ProductRouter};
