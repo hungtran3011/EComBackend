@@ -3,7 +3,7 @@ import * as types from "./types.schema.js"
 
 /**
  * @name User
- * @author @hungtran3011
+ * @author hungtran3011
  * @description Định nghĩa 1 user, có thể không hoặc có đăng ký tài khoản. 
  * Việc cho phép lưu trữ người dùng (người mua) không đăng ký tài khoản
  * sẽ giúp ích cho cửa hàng khi cần track khách nào mua hàng gì cũng như
@@ -29,7 +29,7 @@ const User = mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: false },
   phoneNumber: { type: String, required: true },
-  password: { type: String, required: function() { return this.isRegistered; } },
+  password: { type: String, required: function() {return this.isRegistered} },
   address: {
     homeNumber: {type: String, required: false},
     street: { type: String, required: false },
@@ -40,6 +40,7 @@ const User = mongoose.Schema({
   },
   role: { type: String, required: true, enum: ['customer', 'admin', 'anon'], default: 'anon' },
   isRegistered: { type: Boolean, default: false },
+  refreshToken: { type: String, required: function() {return this.isRegistered} },
 }, {timestamps: true}) 
 
 const UserModel = mongoose.model("User", User);

@@ -2,29 +2,24 @@ import { Router } from "express";
 
 import UserControllers from "../controllers/user.controller";
 import { userMiddleware } from "../middleware/user.middleware";
+import { IPRateLimiter } from "../config/rate-limit";
 
 const router = Router()
 
-router.get("sign-in", UserControllers.signIn)
-
-router.post("/sign-up", UserControllers.signUp)
-
-router.get("/user", userMiddleware, (req, res) => {
-  res.send("User route")
-})
+router.get("/user", IPRateLimiter, userMiddleware, UserControllers.getAllUsers)
 
 router
-  .get("/user/:id", userMiddleware, (req, res) => {
+  .get("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .post("/user/:id", userMiddleware, (req, res) => {
+  .post("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .put("/user/:id", userMiddleware, (req, res) => {
+  .put("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .delete("/user/:id", userMiddleware, (req, res) => {
+  .delete("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
 
-export {router as UserRoutes};
+export {router as UserRouter};

@@ -8,7 +8,8 @@ import path from "path";
 import { fileURLToPath } from 'url';
 
 import { corsOptions } from "./config/cors.config.js";
-import { ProductRouter } from "./routes/product.route.js";
+import { MainRouter } from "./routes/index.js";
+import { IPRateLimiter } from "./config/rate-limit.js";
 
 
 // Create __dirname equivalent for ES modules
@@ -33,6 +34,7 @@ mongoose.connect(queryString).then(() => {
 })
 
 app.use(express.urlencoded({ extended: false }))
+app.use(express.json()) // Add this to parse JSON request bodies
 
 app.use(morgan('dev', {
   skip: function (req, res) { return res.statusCode < 400 }
@@ -48,11 +50,21 @@ app.use(morgan("combined", {
 app.use(cors(corsOptions));
 
 app.get("/", (req, res) => {
-  res.json({ message: "Hello World" });
+  res.json({ message: "Server is healthy" });
 })
 
-app.use("/products", ProductRouter);
+// Apply routers with URL prefixes
+app.use("/api", MainRouter);
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    message: "Something went wrong!",
+    error: process.env.NODE_ENV === 'production' ? {} : err
+  });
+});
 
 app.listen(port, () => {
-  console.log(`Server running on port ${process.env.PORT}`);
+  console.log(`Server running on port ${port}`);
 })

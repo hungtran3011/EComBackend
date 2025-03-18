@@ -1,25 +1,26 @@
 import { Router } from "express";
 import ProductControllers from "../controllers/product.controller.js"
 import {userMiddleware} from "../middleware/user.middleware.js";
+import { IPRateLimiter } from "../config/rate-limit.js";
 
 const router = Router();
 
-router.route("/products")
+router.route("/")
   .get(ProductControllers.getAllProducts)
-  .post(userMiddleware, ProductControllers.createProduct);
+  .post(IPRateLimiter, userMiddleware, ProductControllers.createProduct);
 
-router.route("/products/:id")
+router.route("/:id")
   .get(ProductControllers.getProductById)
-  .put(userMiddleware, ProductControllers.updateProduct)
-  .delete(userMiddleware, ProductControllers.deleteProduct);
+  .put(IPRateLimiter, userMiddleware, ProductControllers.updateProduct)
+  .delete(IPRateLimiter, userMiddleware, ProductControllers.deleteProduct);
 
 router.route("/categories")
-  .get(ProductControllers.getAllCategories)
-  .post(userMiddleware, ProductControllers.createCategory);
+  .get(IPRateLimiter, ProductControllers.getAllCategories)
+  .post(IPRateLimiter, userMiddleware, ProductControllers.createCategory);
 
 router.route("/categories/:id")
   .get(ProductControllers.getCategoryById)
-  .put(userMiddleware, ProductControllers.updateCategory)
-  .delete(userMiddleware, ProductControllers.deleteCategory);
+  .put(IPRateLimiter, userMiddleware, ProductControllers.updateCategory)
+  .delete(IPRateLimiter, userMiddleware, ProductControllers.deleteCategory);
 
 export {router as ProductRouter};
