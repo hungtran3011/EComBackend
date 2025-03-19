@@ -211,7 +211,7 @@ const swaggerDefinition = {
 
 // Options for the swagger docs
 const options = {
-  definition: swaggerDefinition,
+  swaggerDefinition,
   // Paths to files containing OpenAPI definitions
   apis: [
     path.join(__dirname, './src/routes/*.js'),
