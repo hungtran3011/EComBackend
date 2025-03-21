@@ -1,8 +1,24 @@
-import mongoose from "mongoose";
 import { User } from "../schemas/user.schema.js";
 import { config } from "dotenv";
+import { z } from "zod";
+import bcrypt from "bcrypt";
 
 config()
+
+const UserSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "Tên không được để trống"),
+  email: z.string().email("Email không hợp lệ").optional(),
+  phoneNumber: z.string().min(1, "Số điện thoại không được để trống"),
+  address: z.object({
+    homeNumber: z.string().optional(),
+    street: z.string().optional(),
+    district: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    province: z.string().optional()
+  }).optional(),
+});
 
 /**
  * @swagger
@@ -36,23 +52,85 @@ config()
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/User'
+ *               type: object
+ *               properties:
+ *                 pages:
+ *                   type: integer
+ *                   example: 5
+ *                 limit:
+ *                   type: integer
+ *                   example: 10
+ *                 total:
+ *                   type: integer
+ *                   example: 42
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Bạn không có quyền truy cập. Chỉ quản trị viên mới có quyền xem danh sách người dùng.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access denied. Admin privileges required.
  *       404:
  *         description: Không tìm thấy người dùng nào cả. Có lẽ chúng ta đang ở trong vũ trụ song song?
  *       401:
- *         description: Bạn không có quyền xem danh sách này. Nâng cấp tài khoản hoặc liên hệ quản trị viên nhé!
+ *         description: Bạn chưa đăng nhập hoặc token không hợp lệ.
+ *       500:
+ *         description: Lỗi máy chủ khi truy xuất danh sách người dùng.
+ */
+/**
+ * Lấy danh sách tất cả người dùng với phân trang
+ * @param {object} req - Đối tượng request của Express
+ * @param {object} req.query - Các tham số truy vấn
+ * @param {number} [req.query.start=0] - Số lượng bản ghi cần bỏ qua
+ * @param {number} [req.query.limit=10] - Số lượng bản ghi tối đa trả về
+ * @param {object} res - Đối tượng response của Express
+ * @returns {Promise<object>} Phản hồi JSON với danh sách người dùng hoặc thông báo lỗi
  */
 const getAllUsers = async (req, res) => {
-  const start = parseInt(req.query.start) || 0;
-  const limit = parseInt(req.query.limit) || 10;
-  const userList = await User.find({}).skip(start).limit(limit);
-  if (userList.length > 0) {
-    return res.status(200).json(userList);
-  }
-  if (!userList) {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Access denied. Admin privileges required." });
+    }
+
+    const start = parseInt(req.query.start) || 0;
+    const limit = parseInt(req.query.limit) || 10;
+    const userList = await User.find({}).skip(start).limit(limit);
+    
+    if (userList.length > 0) {
+      const total = await User.countDocuments();
+      const pages = Math.ceil(total / limit);
+      
+      const returnUserList = userList.map(user => {
+        return UserSchema.parse({
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          address: user.address,
+        });
+      });
+      
+      const response = {
+        pages,
+        limit,
+        total,
+        users: returnUserList
+      };
+      
+      return res.status(200).json(response);
+    }
+    
     return res.status(404).json({ message: "No users found" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 }
 
@@ -65,6 +143,7 @@ const getAllUsers = async (req, res) => {
  *       Lấy thông tin chi tiết của một người dùng dựa trên ID. 
  *       Giống như tìm kiếm hồ sơ của một người cụ thể trong một tòa nhà đầy người vậy. 
  *       ID chính là số phòng của họ, và chúng tôi sẽ dẫn bạn đến đúng cánh cửa đó!
+ *       Lưu ý: Người dùng chỉ có thể xem thông tin của chính họ, trong khi quản trị viên có thể xem thông tin của bất kỳ người dùng nào.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -82,16 +161,57 @@ const getAllUsers = async (req, res) => {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Bạn không có quyền xem thông tin này. Bạn chỉ có thể xem thông tin của chính mình.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access denied. You can only view your own profile.
  *       404:
  *         description: Không tìm thấy người dùng với ID này. Có thể họ đã chuyển nhà?
  *       401:
- *         description: Bạn không có quyền xem thông tin này. Đây là khu vực hạn chế!
+ *         description: Bạn chưa đăng nhập hoặc token không hợp lệ.
+ *       500:
+ *         description: Lỗi máy chủ khi truy xuất thông tin người dùng.
+ */
+/**
+ * Lấy thông tin người dùng theo ID
+ * @param {object} req - Đối tượng request của Express
+ * @param {object} req.params - Các tham số từ URL
+ * @param {string} req.params.id - ID người dùng cần tìm
+ * @param {object} res - Đối tượng response của Express
+ * @returns {Promise<object>} Phản hồi JSON với dữ liệu người dùng hoặc thông báo lỗi
  */
 const getUserById = async (req, res) => {
-  const { id } = req.params;
-  const user = await User.findById(id);
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
+  try {
+    const { id } = req.params;
+    
+    // Check if user is admin or requesting their own data
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      return res.status(403).json({ message: "Access denied. You can only view your own profile." });
+    }
+    
+    const user = await User.findById(id);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    const userData = UserSchema.parse({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      address: user.address,
+    });
+    
+    return res.status(200).json(userData);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 }
 
@@ -104,7 +224,10 @@ const getUserById = async (req, res) => {
  *       Tạo người dùng mới mà không yêu cầu đăng ký chính thức, thường dùng cho khách mua hàng nhanh. 
  *       Giống như việc cho phép ai đó ghé thăm nhà bạn mà không cần làm thẻ thành viên của khu dân cư. 
  *       Họ vẫn có thể mua sắm, nhưng sẽ không có tất cả các đặc quyền của thành viên chính thức!
+ *       Lưu ý: Chỉ quản trị viên mới có quyền tạo người dùng không đăng ký.
  *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -131,35 +254,91 @@ const getUserById = async (req, res) => {
  *     responses:
  *       201:
  *         description: Đã tạo người dùng mới thành công! Chào mừng đến với cửa hàng của chúng tôi!
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User created successfully
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Bạn không có quyền tạo người dùng. Chỉ quản trị viên mới có thể thực hiện thao tác này.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access denied. Admin privileges required.
  *       400:
  *         description: Người dùng này đã tồn tại rồi! Có lẽ bạn đã từng ghé thăm chúng tôi trước đây?
+ *       401:
+ *         description: Bạn chưa đăng nhập hoặc token không hợp lệ.
  *       500:
  *         description: Ôi không! Máy chủ gặp sự cố khi tạo người dùng mới.
  */
+/**
+ * Tạo người dùng mới không cần đăng ký
+ * @param {object} req - Đối tượng request của Express
+ * @param {object} req.body - Dữ liệu từ body của request
+ * @param {string} req.body.name - Tên người dùng
+ * @param {string} [req.body.email] - Email người dùng (không bắt buộc)
+ * @param {string} req.body.phoneNumber - Số điện thoại người dùng
+ * @param {object} [req.body.address] - Địa chỉ người dùng (không bắt buộc)
+ * @param {object} res - Đối tượng response của Express
+ * @returns {Promise<object>} Phản hồi JSON với thông tin người dùng đã tạo hoặc thông báo lỗi
+ */
 const createNonRegisteredUser = async (req, res) => {
   try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Access denied. Admin privileges required." });
+    }
+
     const { name, email, phoneNumber, address } = req.body;
+    
+    // For non-registered users, we need to provide defaults for required fields
+    // Generate a random string for password (won't be used but needed for validation)
+    const tempPassword = Math.random().toString(36).slice(-10);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    
+    // Initialize with a valid refresh token string to avoid validation errors
+    
     const newUser = new User({
       name,
       email,
       phoneNumber,
       address,
       isRegistered: false,
-      role: "anon"
+      role: "anon",
+      password: hashedPassword,
     });
+    
     const existedUser = await User.findOne({
       $or: [
         { email },
         { phoneNumber }
       ]
     });
+    
     if (existedUser) {
       return res.status(400).json({ message: "User already exists" });
     }
-    else await newUser.save();
+    
+    await newUser.save();
+    
+    // Remove sensitive data before sending response
+    const userResponse = newUser.toObject();
+    delete userResponse.password;
+    delete userResponse.refreshToken;
+    
     res.status(201).json({
       message: "User created successfully",
-      user: newUser,
+      user: userResponse,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -175,6 +354,7 @@ const createNonRegisteredUser = async (req, res) => {
  *       Cập nhật thông tin của người dùng hiện có, như tên, email, số điện thoại hoặc địa chỉ. 
  *       Giống như việc sơn lại nhà bạn vậy - cấu trúc vẫn giữ nguyên, nhưng ngoại hình có thể thay đổi hoàn toàn! 
  *       Đừng lo, chúng tôi sẽ không làm mất đồ của bạn trong quá trình này đâu!
+ *       Lưu ý: Người dùng chỉ có thể cập nhật thông tin của chính họ, trong khi quản trị viên có thể cập nhật thông tin của bất kỳ người dùng nào.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -208,27 +388,68 @@ const createNonRegisteredUser = async (req, res) => {
  *     responses:
  *       200:
  *         description: Thông tin đã được cập nhật thành công! Trông bạn thật tuyệt với diện mạo mới này!
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       403:
+ *         description: Bạn không có quyền cập nhật thông tin này. Bạn chỉ có thể cập nhật thông tin của chính mình.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access denied. You can only update your own profile.
  *       404:
  *         description: Không tìm thấy người dùng này. Có thể họ đã biến mất khỏi hệ thống?
  *       401:
- *         description: Bạn không có quyền cập nhật thông tin này. Đây không phải hồ sơ của bạn!
+ *         description: Bạn chưa đăng nhập hoặc token không hợp lệ.
  *       500:
  *         description: Có lỗi xảy ra khi cập nhật thông tin. Có vẻ như máy chủ hơi mệt mỏi!
  */
+/**
+ * Cập nhật thông tin người dùng hiện có
+ * @param {object} req - Đối tượng request của Express
+ * @param {object} req.params - Các tham số từ URL
+ * @param {string} req.params.id - ID người dùng cần cập nhật
+ * @param {object} req.body - Dữ liệu cần cập nhật
+ * @param {string} [req.body.name] - Tên mới
+ * @param {string} [req.body.email] - Email mới
+ * @param {string} [req.body.phoneNumber] - Số điện thoại mới
+ * @param {object} [req.body.address] - Địa chỉ mới
+ * @param {object} res - Đối tượng response của Express
+ * @returns {Promise<object>} Phản hồi JSON với thông tin người dùng đã cập nhật hoặc thông báo lỗi
+ */
 const updateUser = async (req, res) => {
-  try{
-    const {id} = req.params;
-    const {name, email, phoneNumber, address} = req.body;
-    const updateUser = await User.findOneAndUpdate({_id: id}, {
-      name,
-      email,
-      phoneNumber,
-      address
-    }, {new: true});
-    return res.status(200).json(updateUser);
-  }
-  catch(e){
-    res.status(500).json({message: e.message});
+  try {
+    const { id } = req.params;
+    
+    // Check if user is admin or updating their own data
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      return res.status(403).json({ message: "Access denied. You can only update your own profile." });
+    }
+    
+    const { name, email, phoneNumber, address } = req.body;
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: id }, 
+      {
+        name,
+        email,
+        phoneNumber,
+        address
+      }, 
+      { new: true }
+    );
+    
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    return res.status(200).json(updatedUser);
+  } catch (e) {
+    res.status(500).json({ message: e.message });
   }
 }
 
@@ -242,6 +463,7 @@ const updateUser = async (req, res) => {
  *       Giống như khi bạn xóa số điện thoại của người yêu cũ vậy - một khi đã xóa, 
  *       bạn sẽ phải bắt đầu lại từ đầu nếu muốn kết nối lại. 
  *       Hãy cẩn thận với quyền lực này, nó rất mạnh mẽ!
+ *       Lưu ý: Người dùng chỉ có thể xóa tài khoản của chính họ, trong khi quản trị viên có thể xóa bất kỳ tài khoản nào.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -255,24 +477,47 @@ const updateUser = async (req, res) => {
  *     responses:
  *       204:
  *         description: Người dùng đã được xóa thành công. Họ sẽ được nhớ mãi trong tim chúng tôi!
+ *       403:
+ *         description: Bạn không có quyền xóa người dùng này. Bạn chỉ có thể xóa tài khoản của chính mình.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access denied. You can only delete your own account.
  *       404:
  *         description: Không tìm thấy người dùng này để xóa. Có lẽ họ đã tự biến mất trước đó?
  *       401:
- *         description: Bạn không có quyền xóa người này. Quyền lực lớn đi kèm trách nhiệm lớn!
+ *         description: Bạn chưa đăng nhập hoặc token không hợp lệ.
  *       500:
  *         description: Máy chủ gặp sự cố khi thực hiện lệnh xóa. Có vẻ như nó đang cố bảo vệ người dùng này!
  */
+/**
+ * Xóa người dùng theo ID
+ * @param {object} req - Đối tượng request của Express
+ * @param {object} req.params - Các tham số từ URL
+ * @param {string} req.params.id - ID của người dùng cần xóa
+ * @param {object} res - Đối tượng response của Express
+ * @returns {Promise<object>} Phản hồi rỗng khi xóa thành công hoặc thông báo lỗi
+ */
 const deleteUser = async (req, res) => { 
-  try{
-    const {id} = req.params;
-    const deletedUser = await User.findOneAndDelete({_id: id});
+  try {
+    const { id } = req.params;
+    
+    // Check if user is admin or deleting their own account
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      return res.status(403).json({ message: "Access denied. You can only delete your own account." });
+    }
+    
+    const deletedUser = await User.findOneAndDelete({ _id: id });
     if (!deletedUser) {
-      return res.status(404).json({message: "User not found"});
+      return res.status(404).json({ message: "User not found" });
     }
     return res.status(204).send();
-  }
-  catch (e) {
-    res.status(500).json({message: e.message});
+  } catch (e) {
+    res.status(500).json({ message: e.message });
   }
 }
 

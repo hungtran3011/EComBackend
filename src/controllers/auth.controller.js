@@ -1,4 +1,6 @@
 import { User } from "../schemas/user.schema.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 /**
  * @swagger
@@ -73,8 +75,6 @@ import { User } from "../schemas/user.schema.js";
  *                   type: string
  *                 phoneNumber:
  *                   type: string
- *                 hashedPassword:
- *                   type: string
  *                 address:
  *                   type: object
  *                 isRegistered:
@@ -102,32 +102,41 @@ const registerUser = async (req, res) => {
         { email },
         { phoneNumber }
       ],
-      isRegistered: false
     });
-    if (existedUser) {
+    if (existedUser.isRegistered) {
       return res.status(400).json({ message: "User already exists" });
     }
+    
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Initialize with a valid refresh token string (even though it's not used yet)
+    // Using a simple string instead of an empty string to avoid validation errors
+    
+    // Create new user with valid role (customer instead of user)
     const newUser = new User({
       name,
       email,
       phoneNumber,
-      hashedPassword,
+      password: hashedPassword,
       address,
       isRegistered: true,
-      role: "user" // Set appropriate role for registered users
+      role: "customer",
     });
+    
     await newUser.save();
-    // Convert to plain object and remove hashedPassword
+    
+    // Convert to plain object and remove sensitive data
     const userResponse = newUser.toObject();
-    delete userResponse.hashedPassword;
+    delete userResponse.password;
+    delete userResponse.refreshToken;
+    
     res.status(201).json(userResponse);
   }
   catch (e) {
     res.status(500).json({ message: e.message });
   }
 }
-
 
 /**
  * @swagger
@@ -173,12 +182,47 @@ const registerUser = async (req, res) => {
  *                 refreshToken:
  *                   type: string
  *                   description: Token để làm mới access token (có hiệu lực trong 1 ngày)
+ *                 user:
+ *                   type: object
+ *                   description: Thông tin người dùng đã đăng nhập
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: ID người dùng
+ *                     name:
+ *                       type: string
+ *                       description: Tên người dùng
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       description: Email người dùng
+ *                     phoneNumber:
+ *                       type: string
+ *                       description: Số điện thoại người dùng
+ *                     address:
+ *                       $ref: '#/components/schemas/Address'
+ *                     role:
+ *                       type: string
+ *                       enum: [customer, admin, anon]
+ *                       description: Vai trò của người dùng
  *       401:
  *         description: Sai mật khẩu rồi! Hay là bạn đã quên mật khẩu?
  *       404:
  *         description: Không tìm thấy tài khoản này. Có lẽ bạn chưa đăng ký?
  *       500:
  *         description: Máy chủ đang gặp vấn đề. Xin lỗi vì sự bất tiện này!
+ */
+/**
+ * @name signIn
+ * @author hungtran3011
+ * @description Đăng nhập người dùng bằng email/số điện thoại và mật khẩu
+ * @param {object} req - Express request object
+ * @param {object} req.body - Request body
+ * @param {string} [req.body.email] - Email của người dùng
+ * @param {string} [req.body.phoneNumber] - Số điện thoại của người dùng
+ * @param {string} req.body.password - Mật khẩu của người dùng
+ * @param {object} res - Express response object
+ * @returns {Promise<void>} Promise không có giá trị trả về
  */
 const signIn = async (req, res) => {
   try {
@@ -188,34 +232,57 @@ const signIn = async (req, res) => {
         { email },
         { phoneNumber }
       ]
-    })
+    });
+    
     if (!user) {
-      res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
-    const isValidPassword = await bcrypt.compare(password, user.hashedPassword);
-    if (isValidPassword) {
-      const accessToken = jwt.sign(
-        {
-          "id": user._id,
-          "role": user.role
-        },
-        process.env.ACCESS_TOKEN_SECRET,
-        {
-          expiresIn: "1h"
-        }
-      );
-      const refreshToken = jwt.sign(
-        {
-          "username": user.email || user.phoneNumber,
-          "role": user.role
-        },
-        process.env.REFRESH_TOKEN_SECRET,
-        {
-          expiresIn: "1d"
-        }
-      );
-      res.status(200).json({ accessToken, refreshToken });
+    
+    // Compare with password field (not hashedPassword)
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ message: "Invalid password" });
     }
+    
+    const accessToken = jwt.sign(
+      {
+        "id": user._id,
+        "role": user.role
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: "1h"
+      }
+    );
+    
+    const refreshToken = jwt.sign(
+      {
+        "id": user._id,
+        "role": user.role
+      },
+      process.env.REFRESH_TOKEN_SECRET,
+      {
+        expiresIn: "1d"
+      }
+    );
+    
+    // Update the user's refresh token in the database
+    user.refreshToken = refreshToken;
+    await user.save();
+    
+    res.status(200).json({ 
+      accessToken, 
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        address: user.address,
+        role: user.role
+      } 
+    });
   }
   catch (e) {
     res.status(500).json({ message: e.message });
@@ -260,14 +327,35 @@ const signIn = async (req, res) => {
  *       403:
  *         description: Refresh token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại!
  */
+/**
+ * @name handleRefreshToken
+ * @author hungtran3011
+ * @description Làm mới access token bằng refresh token. 
+ * @param {object} req - Express request object
+ * @param {object} req.body - Request body
+ * @param {string} req.body.refreshToken - Refresh token để tạo access token mới
+ * @param {object} res - Express response object
+ * @returns {void}
+ */
 const handleRefreshToken = (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) {
     res.sendStatus(401);
   }
+  // Kiểm tra cấu trúc của refresh token
+  // gồm 3 phần cách nhau bởi dấu .
+  const parts = refreshToken.split('.');
+  if (parts.length !== 3) {
+    return res.status(403).json({ message: "Invalid refresh token format" });
+  }
+  
+  const base64UrlRegex = /^[A-Za-z0-9_-]*$/;
+  if (!parts.every(part => base64UrlRegex.test(part))) {
+    return res.status(403).json({ message: "Invalid refresh token format" });
+  }
   jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
     if (err) {
-      res.sendStatus(403);
+      return res.sendStatus(403);
     }
     const accessToken = jwt.sign(
       {
@@ -305,6 +393,16 @@ const handleRefreshToken = (req, res) => {
  *         description: Đăng xuất thành công! Hẹn gặp lại bạn sớm nhé!
  *       500:
  *         description: Rất tiếc, có lỗi xảy ra khi đăng xuất. Hãy thử lại sau!
+ */
+/**
+ * @name handleLogout
+ * @author hungtran3011
+ * @description Đăng xuất người dùng bằng cách xóa refresh token
+ * @param {object} req - Express request object
+ * @param {object} req.params - Route parameters
+ * @param {string} req.params.id - ID người dùng cần đăng xuất
+ * @param {object} res - Express response object
+ * @returns {void}
  */
 const handleLogout = (req, res) => {
   const { id } = req.params;

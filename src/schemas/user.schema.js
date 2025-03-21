@@ -39,7 +39,7 @@ const User = mongoose.Schema({
   },
   role: { type: String, required: true, enum: ['customer', 'admin', 'anon'], default: 'anon' },
   isRegistered: { type: Boolean, default: false },
-  refreshToken: { type: String, required: function() {return this.isRegistered} },
+  refreshToken: { type: String, required: false},
 }, {timestamps: true}) 
 
 const UserModel = mongoose.model("User", User);

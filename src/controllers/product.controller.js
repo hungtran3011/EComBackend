@@ -1,5 +1,21 @@
 import mongoose from "mongoose";
 import {ProductModel} from "../schemas/product.schema.js";
+import { z } from "zod";
+
+const ProductSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "Tên sản phẩm không được để trống"),
+  description: z.string().optional(),
+  price: z.number().min(0, "Giá sản phẩm không được âm"),
+  category: z.string().min(1, "Danh mục sản phẩm không được để trống"),
+});
+
+const ProductListSchema = z.object({
+  page: z.number().optional(),
+  limit: z.number().optional(),
+  total: z.number().optional(),
+  products: z.array(ProductSchema),
+});
 
 /**
  * @swagger
@@ -26,8 +42,17 @@ import {ProductModel} from "../schemas/product.schema.js";
  */
 const getAllProducts = async (req, res) => {
   try {
-    const products = await ProductModel.find();
-    res.json(products);
+    const { page = 1, limit = 10 } = req.query;
+    const startIndex = (page - 1) * limit;
+    const total = await ProductModel.countDocuments();
+    const products = await ProductModel.find().skip(startIndex).limit(limit);
+
+    res.json(ProductListSchema.parse({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      products,
+    }));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

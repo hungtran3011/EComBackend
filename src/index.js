@@ -27,7 +27,10 @@ const port = process.env.PORT || 3001;
 
 const queryString = process.env.MONGO_READ_WRITE_URI;
 
-mongoose.connect(queryString).then(() => {
+mongoose.connect(queryString, {
+  ssl: true,
+  tls: true
+}).then(() => {
   console.log("Connected to MongoDB");
 }).catch((error) => {
   console.error(error);

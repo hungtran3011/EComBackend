@@ -6,19 +6,21 @@ import { IPRateLimiter } from "../config/rate-limit.js";
 
 const router = Router()
 
-router.get("/user", IPRateLimiter, userMiddleware, UserControllers.getAllUsers)
+router
+  .get("/", IPRateLimiter, userMiddleware, UserControllers.getAllUsers)
+  .post("/", IPRateLimiter, userMiddleware, UserControllers.createNonRegisteredUser)
 
 router
-  .get("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
+  .get("/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .post("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
+  .post("/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .put("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
+  .put("/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
-  .delete("/user/:id", IPRateLimiter, userMiddleware, (req, res) => {
+  .delete("/:id", IPRateLimiter, userMiddleware, (req, res) => {
     res.send("User route")
   })
 
