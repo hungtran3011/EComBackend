@@ -200,7 +200,10 @@ const registerUser = async (req, res) => {
  *                       type: string
  *                       description: Số điện thoại người dùng
  *                     address:
- *                       $ref: '#/components/schemas/Address'
+ *                       type: object
+ *                       description: Địa chỉ người dùng 
+ *                       properties:
+ *                          
  *                     role:
  *                       type: string
  *                       enum: [customer, admin, anon]

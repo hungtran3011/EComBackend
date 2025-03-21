@@ -104,11 +104,11 @@ const getAllUsers = async (req, res) => {
     const start = parseInt(req.query.start) || 0;
     const limit = parseInt(req.query.limit) || 10;
     const userList = await User.find({}).skip(start).limit(limit);
-    
+
     if (userList.length > 0) {
       const total = await User.countDocuments();
       const pages = Math.ceil(total / limit);
-      
+
       const returnUserList = userList.map(user => {
         return UserSchema.parse({
           id: user._id,
@@ -118,17 +118,17 @@ const getAllUsers = async (req, res) => {
           address: user.address,
         });
       });
-      
+
       const response = {
         pages,
         limit,
         total,
         users: returnUserList
       };
-      
+
       return res.status(200).json(response);
     }
-    
+
     return res.status(404).json({ message: "No users found" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -155,13 +155,6 @@ const getAllUsers = async (req, res) => {
  *           type: string
  *         required: true
  *         description: ID của người dùng (như một địa chỉ nhà duy nhất vậy!)
- *       - in: header
- *         name: Authorization
- *         schema:
- *           type: string
- *           format: Bearer {token}
- *         required: true
- *         description: Access token để xác thực và phân quyền. Phải bắt đầu bằng "Bearer ", và theo sau là token hợp lệ.
  *     responses:
  *       200:
  *         description: Đã tìm thấy người dùng! Đây là thông tin chi tiết.
@@ -203,33 +196,33 @@ const getAllUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Validate MongoDB ID format to prevent unnecessary database queries
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid user ID format" 
+        message: "Invalid user ID format"
       });
     }
-    
+
     // Check if user is admin or requesting their own data
     if (req.user.role !== 'admin' && req.user.id !== id) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         success: false,
-        message: "Access denied. You can only view your own profile." 
+        message: "Access denied. You can only view your own profile."
       });
     }
-    
+
     // Find user with specific fields projection to exclude sensitive data
     const user = await User.findById(id).select('-password -refreshToken -__v');
-    
+
     if (!user) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "User not found" 
+        message: "User not found"
       });
     }
-    
+
     // Use zod to validate and transform the data
     // Convert MongoDB ObjectId to string before validation
     const userData = UserSchema.parse({
@@ -239,7 +232,7 @@ const getUserById = async (req, res) => {
       phoneNumber: user.phoneNumber,
       address: user.address,
     });
-    
+
     // Return a well-structured response
     return res.status(200).json({
       success: true,
@@ -255,10 +248,10 @@ const getUserById = async (req, res) => {
         errors: error.errors
       });
     }
-    
+
     // General error handling
     console.error(`Error retrieving user: ${error.message}`);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
       message: "Failed to retrieve user information",
       error: process.env.NODE_ENV === 'production' ? undefined : error.message
@@ -343,44 +336,54 @@ const createNonRegisteredUser = async (req, res) => {
     }
 
     const { name, email, phoneNumber, address } = req.body;
-    
+
     // For non-registered users, we need to provide defaults for required fields
     // Generate a random string for password (won't be used but needed for validation)
     const tempPassword = Math.random().toString(36).slice(-10);
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    
+
     // Initialize with a valid refresh token string to avoid validation errors
-    const initialRefreshToken = "non-registered-user";
-    
+
+    // Validate input data using UserSchema
+    try {
+      UserSchema.parse({ name, email, phoneNumber, address });
+    } catch (validationError) {
+      return res.status(400).json({ 
+      message: "Validation error", 
+      errors: validationError.errors 
+      });
+    }
+
+    // Check if user already exists before proceeding
+    const existingUser = await User.findOne({
+      $or: [
+      { email: email && email.trim().toLowerCase() },
+      { phoneNumber: phoneNumber && phoneNumber.trim() }
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    // Create new user with sanitized inputs
     const newUser = new User({
-      name,
-      email,
-      phoneNumber,
+      name: name.trim(),
+      email: email ? email.trim().toLowerCase() : undefined,
+      phoneNumber: phoneNumber.trim(),
       address,
       isRegistered: false,
       role: "anon",
-      password: hashedPassword,
-      refreshToken: initialRefreshToken // Use a non-empty string
+      password: "",
+      refreshToken: "" // Empty refresh token for non-registered users
+
     });
-    
-    const existedUser = await User.findOne({
-      $or: [
-        { email },
-        { phoneNumber }
-      ]
-    });
-    
-    if (existedUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-    
+
     await newUser.save();
-    
     // Remove sensitive data before sending response
     const userResponse = newUser.toObject();
     delete userResponse.password;
     delete userResponse.refreshToken;
-    
+
     res.status(201).json({
       message: "User created successfully",
       user: userResponse,
@@ -428,15 +431,76 @@ const createNonRegisteredUser = async (req, res) => {
  *                 type: string
  *                 description: Số điện thoại mới (nếu bạn đổi số)
  *               address:
- *                 $ref: '#/components/schemas/Address'
+ *                 type: object
  *                 description: Địa chỉ mới (nếu bạn đã chuyển nhà)
+ *                 properties:
+ *                   homeNumber:
+ *                     type: string
+ *                     description: Số nhà mới
+ *                   street:
+ *                     type: string
+ *                     description: Tên đường mới
+ *                   district:
+ *                     type: string
+ *                     description: Quận/huyện mới
+ *                   city:
+ *                     type: string
+ *                     description: Thành phố mới
+ *                   state:
+ *                     type: string
+ *                     description: Bang mới (nếu có)
+ *                   province:
+ *                     type: string
+ *                     description: Tỉnh mới
  *     responses:
  *       200:
  *         description: Thông tin đã được cập nhật thành công! Trông bạn thật tuyệt với diện mạo mới này!
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/User'
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: 1234567890abcdef12345678
+ *                     name:
+ *                       type: string
+ *                       example: John Doe
+ *                     email:
+ *                       type: string
+ *                       example: john.doe@example.com
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: 0987654321
+ *                     address:
+ *                       type: object
+ *                       properties:
+ *                         homeNumber:
+ *                           type: string
+ *                           example: 123
+ *                         street:
+ *                           type: string
+ *                           example: Main St
+ *                         district:
+ *                           type: string
+ *                           example: District 1
+ *                         city:
+ *                           type: string
+ *                           example: Ho Chi Minh City
+ *                         state:
+ *                           type: string
+ *                           example: HCM
+ *                         province:
+ *                           type: string
+ *                           example: Vietnam
+ *       400:
+ *         description: ID không hợp lệ. Vui lòng kiểm tra lại ID.
  *       403:
  *         description: Bạn không có quyền cập nhật thông tin này. Bạn chỉ có thể cập nhật thông tin của chính mình.
  *       404:
@@ -462,28 +526,35 @@ const createNonRegisteredUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID format"
+      });
+    }
+
     // Check if user is admin or updating their own data
     if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({ message: "Access denied. You can only update your own profile." });
     }
-    
+
     const { name, email, phoneNumber, address } = req.body;
     const updatedUser = await User.findOneAndUpdate(
-      { _id: id }, 
+      { _id: id },
       {
         name,
         email,
         phoneNumber,
         address
-      }, 
+      },
       { new: true }
     );
-    
+
     if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     return res.status(200).json(updatedUser);
   } catch (e) {
     res.status(500).json({ message: e.message });
@@ -531,15 +602,22 @@ const updateUser = async (req, res) => {
  * @param {object} res - Đối tượng response của Express
  * @returns {Promise<object>} Phản hồi rỗng khi xóa thành công hoặc thông báo lỗi
  */
-const deleteUser = async (req, res) => { 
+const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID format"
+      });
+    }
+
     // Check if user is admin or deleting their own account
     if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({ message: "Access denied. You can only delete your own account." });
     }
-    
+
     const deletedUser = await User.findOneAndDelete({ _id: id });
     if (!deletedUser) {
       return res.status(404).json({ message: "User not found" });
