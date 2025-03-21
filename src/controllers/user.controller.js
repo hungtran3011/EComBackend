@@ -337,10 +337,6 @@ const createNonRegisteredUser = async (req, res) => {
 
     const { name, email, phoneNumber, address } = req.body;
 
-    // For non-registered users, we need to provide defaults for required fields
-    // Generate a random string for password (won't be used but needed for validation)
-    const tempPassword = Math.random().toString(36).slice(-10);
-
     // Initialize with a valid refresh token string to avoid validation errors
 
     // Validate input data using UserSchema
@@ -375,7 +371,6 @@ const createNonRegisteredUser = async (req, res) => {
       role: "anon",
       password: "",
       refreshToken: "" // Empty refresh token for non-registered users
-
     });
 
     await newUser.save();
@@ -539,17 +534,33 @@ const updateUser = async (req, res) => {
       return res.status(403).json({ message: "Access denied. You can only update your own profile." });
     }
 
+    // Extract data from request body
     const { name, email, phoneNumber, address } = req.body;
+    
+    // Create update object with only provided fields
+    const updateData = {};
+    
+    if (name !== undefined) updateData.name = name.trim();
+    if (email !== undefined) updateData.email = email.trim().toLowerCase();
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber.trim();
+    if (address !== undefined) updateData.address = address;
+    
+    // Validate the update data using Zod schema
+    try {
+      UserSchema.parse(updateData);
+    } catch (validationError) {
+      return res.status(400).json({ 
+      message: "Validation error", 
+      errors: validationError.errors 
+      });
+    }
+    
+    // Update user with sanitized data
     const updatedUser = await User.findOneAndUpdate(
       { _id: id },
-      {
-        name,
-        email,
-        phoneNumber,
-        address
-      },
-      { new: true }
-    );
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password -refreshToken -__v');
 
     if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });

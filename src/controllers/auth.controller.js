@@ -411,6 +411,23 @@ const handleRefreshToken = (req, res) => {
  */
 const handleLogout = (req, res) => {
   const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ message: "User ID is required" });
+  }
+  // Kiểm tra xem người dùng có tồn tại không
+  User.findById(id)
+    .then(user => {
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      // Kiểm tra xem refresh token có tồn tại không
+      if (!user.refreshToken) {
+        return res.status(400).json({ message: "No refresh token found" });
+      }
+    })
+    .catch(err => {
+      return res.status(500).json({ message: err.message });
+    });
   User.findByIdAndUpdate(id, { refreshToken: null }, { new: true })
     .then(() => {
       res.status(200).json({ message: "Logout successfully" });
