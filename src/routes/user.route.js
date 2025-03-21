@@ -11,17 +11,8 @@ router
   .post("/", IPRateLimiter, userMiddleware, UserControllers.createNonRegisteredUser)
 
 router
-  .get("/:id", IPRateLimiter, userMiddleware, (req, res) => {
-    res.send("User route")
-  })
-  .post("/:id", IPRateLimiter, userMiddleware, (req, res) => {
-    res.send("User route")
-  })
-  .put("/:id", IPRateLimiter, userMiddleware, (req, res) => {
-    res.send("User route")
-  })
-  .delete("/:id", IPRateLimiter, userMiddleware, (req, res) => {
-    res.send("User route")
-  })
+  .get("/:id", IPRateLimiter, userMiddleware, UserControllers.getUserById)
+  .put("/:id", IPRateLimiter, userMiddleware, UserControllers.updateUser)
+  .delete("/:id", IPRateLimiter, userMiddleware, UserControllers.deleteUser)
 
 export {router as UserRouter};

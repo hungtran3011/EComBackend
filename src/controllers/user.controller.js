@@ -2,8 +2,9 @@ import { User } from "../schemas/user.schema.js";
 import { config } from "dotenv";
 import { z } from "zod";
 import bcrypt from "bcrypt";
+import mongoose from "mongoose";
 
-config()
+config();
 
 const UserSchema = z.object({
   id: z.string().optional(),
@@ -154,23 +155,33 @@ const getAllUsers = async (req, res) => {
  *           type: string
  *         required: true
  *         description: ID của người dùng (như một địa chỉ nhà duy nhất vậy!)
+ *       - in: header
+ *         name: Authorization
+ *         schema:
+ *           type: string
+ *           format: Bearer {token}
+ *         required: true
+ *         description: Access token để xác thực và phân quyền. Phải bắt đầu bằng "Bearer ", và theo sau là token hợp lệ.
  *     responses:
  *       200:
  *         description: Đã tìm thấy người dùng! Đây là thông tin chi tiết.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/User'
- *       403:
- *         description: Bạn không có quyền xem thông tin này. Bạn chỉ có thể xem thông tin của chính mình.
- *         content:
- *           application/json:
- *             schema:
  *               type: object
  *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
  *                 message:
  *                   type: string
- *                   example: Access denied. You can only view your own profile.
+ *                   example: User retrieved successfully
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: ID không hợp lệ. Vui lòng kiểm tra lại ID.
+ *       403:
+ *         description: Bạn không có quyền xem thông tin này. Bạn chỉ có thể xem thông tin của chính mình.
  *       404:
  *         description: Không tìm thấy người dùng với ID này. Có thể họ đã chuyển nhà?
  *       401:
@@ -183,6 +194,9 @@ const getAllUsers = async (req, res) => {
  * @param {object} req - Đối tượng request của Express
  * @param {object} req.params - Các tham số từ URL
  * @param {string} req.params.id - ID người dùng cần tìm
+ * @param {object} req.user - Thông tin người dùng hiện tại (từ middleware xác thực)
+ * @param {string} req.user.id - ID của người dùng đã xác thực
+ * @param {string} req.user.role - Vai trò của người dùng đã xác thực
  * @param {object} res - Đối tượng response của Express
  * @returns {Promise<object>} Phản hồi JSON với dữ liệu người dùng hoặc thông báo lỗi
  */
@@ -190,28 +204,65 @@ const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
     
+    // Validate MongoDB ID format to prevent unnecessary database queries
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid user ID format" 
+      });
+    }
+    
     // Check if user is admin or requesting their own data
     if (req.user.role !== 'admin' && req.user.id !== id) {
-      return res.status(403).json({ message: "Access denied. You can only view your own profile." });
+      return res.status(403).json({ 
+        success: false,
+        message: "Access denied. You can only view your own profile." 
+      });
     }
     
-    const user = await User.findById(id);
+    // Find user with specific fields projection to exclude sensitive data
+    const user = await User.findById(id).select('-password -refreshToken -__v');
     
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ 
+        success: false,
+        message: "User not found" 
+      });
     }
     
+    // Use zod to validate and transform the data
+    // Convert MongoDB ObjectId to string before validation
     const userData = UserSchema.parse({
-      id: user._id,
+      id: user._id.toString(), // Convert ObjectId to string
       name: user.name,
       email: user.email,
       phoneNumber: user.phoneNumber,
       address: user.address,
     });
     
-    return res.status(200).json(userData);
+    // Return a well-structured response
+    return res.status(200).json({
+      success: true,
+      message: "User retrieved successfully",
+      data: userData
+    });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    // Specific error handling for Zod validation failures
+    if (error.name === 'ZodError') {
+      return res.status(422).json({
+        success: false,
+        message: "Data validation error",
+        errors: error.errors
+      });
+    }
+    
+    // General error handling
+    console.error(`Error retrieving user: ${error.message}`);
+    return res.status(500).json({ 
+      success: false,
+      message: "Failed to retrieve user information",
+      error: process.env.NODE_ENV === 'production' ? undefined : error.message
+    });
   }
 }
 
@@ -266,14 +317,6 @@ const getUserById = async (req, res) => {
  *                   $ref: '#/components/schemas/User'
  *       403:
  *         description: Bạn không có quyền tạo người dùng. Chỉ quản trị viên mới có thể thực hiện thao tác này.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Access denied. Admin privileges required.
  *       400:
  *         description: Người dùng này đã tồn tại rồi! Có lẽ bạn đã từng ghé thăm chúng tôi trước đây?
  *       401:
@@ -307,6 +350,7 @@ const createNonRegisteredUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
     
     // Initialize with a valid refresh token string to avoid validation errors
+    const initialRefreshToken = "non-registered-user";
     
     const newUser = new User({
       name,
@@ -316,6 +360,7 @@ const createNonRegisteredUser = async (req, res) => {
       isRegistered: false,
       role: "anon",
       password: hashedPassword,
+      refreshToken: initialRefreshToken // Use a non-empty string
     });
     
     const existedUser = await User.findOne({
@@ -394,14 +439,6 @@ const createNonRegisteredUser = async (req, res) => {
  *               $ref: '#/components/schemas/User'
  *       403:
  *         description: Bạn không có quyền cập nhật thông tin này. Bạn chỉ có thể cập nhật thông tin của chính mình.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Access denied. You can only update your own profile.
  *       404:
  *         description: Không tìm thấy người dùng này. Có thể họ đã biến mất khỏi hệ thống?
  *       401:
@@ -479,14 +516,6 @@ const updateUser = async (req, res) => {
  *         description: Người dùng đã được xóa thành công. Họ sẽ được nhớ mãi trong tim chúng tôi!
  *       403:
  *         description: Bạn không có quyền xóa người dùng này. Bạn chỉ có thể xóa tài khoản của chính mình.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Access denied. You can only delete your own account.
  *       404:
  *         description: Không tìm thấy người dùng này để xóa. Có lẽ họ đã tự biến mất trước đó?
  *       401:
