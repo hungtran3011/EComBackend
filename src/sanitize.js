@@ -1,7 +1,7 @@
 /**
- * Sanitizes user input to prevent SQL injection and other security issues
- * @param {any} input - The user input to sanitize
- * @returns {any} - The sanitized input
+ * Làm sạch đầu vào từ người dùng để ngăn chặn SQL injection và các vấn đề bảo mật khác
+ * @param {any} input - Dữ liệu đầu vào từ người dùng cần làm sạch
+ * @returns {any} - Dữ liệu đã được làm sạch
  */
 /**
  * @description Hàm này làm sạch dữ liệu đầu vào để ngăn chặn tấn công SQL injection.
@@ -24,68 +24,74 @@
  * sanitizeInput(["John's", "Mary's"]); // Kết quả: ["John''s", "Mary''s"]
  */
 function sanitizeInput(input) {
-  // Handle null or undefined
+  // Xử lý giá trị null hoặc undefined
   if (input === null || input === undefined) {
     return input;
   }
 
-  // Handle strings
+  // Xử lý chuỗi
   if (typeof input === 'string') {
-    // Add input size limit to prevent ReDoS attacks
-    const MAX_STRING_LENGTH = 1000; // Adjust as needed for your application
+    // Thêm giới hạn kích thước đầu vào để ngăn chặn tấn công ReDoS
+    const MAX_STRING_LENGTH = 1000; // Điều chỉnh theo nhu cầu ứng dụng của bạn
     if (input.length > MAX_STRING_LENGTH) {
-      // Either truncate or reject overly long inputs
+      // Cắt ngắn hoặc từ chối đầu vào quá dài
       input = input.substring(0, MAX_STRING_LENGTH);
     }
 
-    // Escape special characters that could be used for SQL injection
+    // Thoát các ký tự đặc biệt có thể được sử dụng cho SQL injection
     let sanitized = input
-      .replace(/'/g, "''")           // Escape single quotes
-      .replace(/\\/g, "\\\\")        // Escape backslashes
-      .replace(/\0/g, "\\0")         // Escape null bytes
-      .trim();                       // Trim whitespace
+      .replace(/'/g, "''")           // Thoát dấu nháy đơn
+      .replace(/\\/g, "\\\\")        // Thoát dấu gạch chéo ngược
+      .replace(/\0/g, "\\0")         // Thoát byte null
+      .trim();                       // Cắt khoảng trắng
 
-    // Use simpler, non-backtracking approach to remove SQL patterns
-    // Instead of using regex with unbounded quantifiers, use string operations
+    // Sử dụng phương pháp đơn giản hơn, không backtracking để loại bỏ các mẫu SQL
+    // Thay vì sử dụng regex với quantifiers không giới hạn, sử dụng thao tác chuỗi
     sanitized = sanitized.toLowerCase().includes(' or ') ? sanitized.split(/ or /i).join(" ") : sanitized;
     sanitized = sanitized.toLowerCase().includes(' and ') ? sanitized.split(/ and /i).join(" ") : sanitized;
     sanitized = sanitized.replace(/;/g, "");
 
-    // NoSQL injection protection - avoid potential catastrophic backtracking
+    // Bảo vệ chống NoSQL injection - tránh backtracking thảm họa
     sanitized = sanitized
-      .replace(/\$(?=[a-z])/gi, "") // Remove MongoDB operators ($eq, $gt) but keep $ in other contexts
-      .replace(/\{\s*\$[a-z]+\s*:/gi, "{"); // Remove MongoDB operator objects but keep valid JSON
+      .replace(/\$(?=[a-z])/gi, "") // Loại bỏ toán tử MongoDB ($eq, $gt) nhưng giữ $ trong các ngữ cảnh khác
+      .replace(/\{\s*\$[a-z]+\s*:/gi, "{"); // Loại bỏ đối tượng toán tử MongoDB nhưng giữ JSON hợp lệ
 
-    // Basic XSS protection
+    // Bảo vệ cơ bản chống XSS
     sanitized = sanitized
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/\(/g, "&#40;")
+      .replace(/\)/g, "&#41;")
+      .replace(/javascript:/gi, "")
+      .replace(/on\w+\s*=/gi, "");
 
     return sanitized;
   }
 
-  // Handle numbers
+  // Xử lý số
   if (typeof input === 'number') {
     return input;
   }
 
-  // Handle booleans
+  // Xử lý boolean
   if (typeof input === 'boolean') {
     return input;
   }
 
-  // Handle arrays
+  // Xử lý mảng
   if (Array.isArray(input)) {
-    // Add array size limit
-    const MAX_ARRAY_LENGTH = 100; // Adjust as needed
+    // Thêm giới hạn kích thước mảng
+    const MAX_ARRAY_LENGTH = 100; // Điều chỉnh theo nhu cầu
     return input.slice(0, MAX_ARRAY_LENGTH).map(item => sanitizeInput(item));
   }
 
-  // Handle objects
+  // Xử lý đối tượng
   if (typeof input === 'object') {
     const sanitized = {};
-    // Add property count limit
-    const MAX_PROPERTIES = 100; // Adjust as needed
+    // Thêm giới hạn số lượng thuộc tính
+    const MAX_PROPERTIES = 100; // Điều chỉnh theo nhu cầu
     let propertyCount = 0;
 
     for (const key in input) {
@@ -98,7 +104,7 @@ function sanitizeInput(input) {
     return sanitized;
   }
 
-  // For any other type, return as is
+  // Đối với bất kỳ kiểu dữ liệu nào khác, trả về như ban đầu
   return input;
 }
 
