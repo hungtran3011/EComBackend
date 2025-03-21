@@ -31,6 +31,13 @@ function sanitizeInput(input) {
 
   // Handle strings
   if (typeof input === 'string') {
+    // Add input size limit to prevent ReDoS attacks
+    const MAX_STRING_LENGTH = 1000; // Adjust as needed for your application
+    if (input.length > MAX_STRING_LENGTH) {
+      // Either truncate or reject overly long inputs
+      input = input.substring(0, MAX_STRING_LENGTH);
+    }
+    
     // Escape special characters that could be used for SQL injection
     let sanitized = input
       .replace(/'/g, "''")           // Escape single quotes
@@ -38,10 +45,11 @@ function sanitizeInput(input) {
       .replace(/\0/g, "\\0")         // Escape null bytes
       .trim();                       // Trim whitespace
     
-    // Remove common SQL injection patterns
-    sanitized = sanitized
-      .replace(/(\s+)(OR|AND)(\s+)/gi, " ")
-      .replace(/;/g, "");
+    // Use simpler, non-backtracking approach to remove SQL patterns
+    // Instead of complex regex with capturing groups, use a simpler approach
+    sanitized = sanitized.split(/\s+OR\s+/i).join(" ");
+    sanitized = sanitized.split(/\s+AND\s+/i).join(" ");
+    sanitized = sanitized.replace(/;/g, "");
     
     return sanitized;
   }
@@ -58,15 +66,23 @@ function sanitizeInput(input) {
 
   // Handle arrays
   if (Array.isArray(input)) {
-    return input.map(item => sanitizeInput(item));
+    // Add array size limit
+    const MAX_ARRAY_LENGTH = 100; // Adjust as needed
+    return input.slice(0, MAX_ARRAY_LENGTH).map(item => sanitizeInput(item));
   }
 
   // Handle objects
   if (typeof input === 'object') {
     const sanitized = {};
+    // Add property count limit
+    const MAX_PROPERTIES = 100; // Adjust as needed
+    let propertyCount = 0;
+    
     for (const key in input) {
+      if (propertyCount >= MAX_PROPERTIES) break;
       if (Object.prototype.hasOwnProperty.call(input, key)) {
         sanitized[key] = sanitizeInput(input[key]);
+        propertyCount++;
       }
     }
     return sanitized;
