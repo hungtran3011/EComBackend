@@ -16,27 +16,51 @@ export const userMiddleware = (req, res, next) => {
     role: "anon",
     id: ""
   }
-  // Rest of the auth check
-  if (!req.headers["authorization"]) {
-    req.user = defaultUser
-    res.sendStatus(401)
-    res.send("No token provided")
+
+  console.log(req)
+
+  // Get authorization header, accounting for case sensitivity issues
+  const authHeader = req.headers.authorization || req.headers.Authorization || req.header('Authorization');
+  
+  // For debugging, log the headers to see what's available
+  console.log('Headers received:', Object.keys(req.headers));
+  
+  // Check if Authorization header exists
+  if (!authHeader) {
+    req.user = defaultUser;
+    return res.status(401).json({ message: "No authorization header provided" });
   }
 
-  const token = req.headers["authorization"].split(" ")[1]
+  // Extract token from Authorization header
+  // More permissive split that handles different formats (space, comma, etc.)
+  const parts = authHeader.split(/[ ,]+/);
+  
+  let token;
+  // Try to find a Bearer token or just use the first token-like part
+  if (parts.length > 1 && parts[0].toLowerCase() === 'bearer') {
+    token = parts[1];
+  } else {
+    // Fallback: use the whole header as token if it looks like a JWT
+    token = authHeader.includes('.') ? authHeader : parts[0];
+  }
+  
   if (!token) {
-    req.user = defaultUser
-    res.sendStatus(401)
-    res.send("No token provided")
+    req.user = defaultUser;
+    return res.status(401).json({ message: "No token provided" });
   }
 
+  // Verify token
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
     if (err) {
-      req.user = defaultUser
-      res.sendStatus(403)
-      res.send("Invalid token")
+      req.user = defaultUser;
+      if (err.name === "TokenExpiredError") {
+        return res.status(401).json({ message: "Token expired" });
+      }
+      return res.status(403).json({ message: "Invalid token", error: err.message });
     }
-    req.user = user
-  })
-  next()
+    
+    // Token is valid - set user info and proceed
+    req.user = user;
+    next();
+  });
 }

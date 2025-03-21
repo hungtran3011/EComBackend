@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 import { corsOptions } from "./config/cors.config.js";
 import { MainRouter } from "./routes/index.js";
-import { IPRateLimiter } from "./config/rate-limit.js";
+import swaggerDocs from "./swagger.js";
 
 
 // Create __dirname equivalent for ES modules
@@ -27,7 +27,10 @@ const port = process.env.PORT || 3001;
 
 const queryString = process.env.MONGO_READ_WRITE_URI;
 
-mongoose.connect(queryString).then(() => {
+mongoose.connect(queryString, {
+  ssl: true,
+  tls: true
+}).then(() => {
   console.log("Connected to MongoDB");
 }).catch((error) => {
   console.error(error);
@@ -68,3 +71,5 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 })
+
+swaggerDocs(app, port);
