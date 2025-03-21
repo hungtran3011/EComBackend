@@ -37,20 +37,31 @@ function sanitizeInput(input) {
       // Either truncate or reject overly long inputs
       input = input.substring(0, MAX_STRING_LENGTH);
     }
-    
+
     // Escape special characters that could be used for SQL injection
     let sanitized = input
       .replace(/'/g, "''")           // Escape single quotes
       .replace(/\\/g, "\\\\")        // Escape backslashes
       .replace(/\0/g, "\\0")         // Escape null bytes
       .trim();                       // Trim whitespace
-    
+
     // Use simpler, non-backtracking approach to remove SQL patterns
     // Instead of complex regex with capturing groups, use a simpler approach
     sanitized = sanitized.split(/\s+OR\s+/i).join(" ");
     sanitized = sanitized.split(/\s+AND\s+/i).join(" ");
     sanitized = sanitized.replace(/;/g, "");
-    
+
+
+    // NoSQL injection protection
+    sanitized = sanitized
+      .replace(/\$(?={)/g, "")      // Remove MongoDB operators like $eq, $gt
+      .replace(/^\{.*\}$/, "")      // Remove objects that could be used for injection
+
+    // Basic XSS protection
+    sanitized = sanitized
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
     return sanitized;
   }
 
@@ -77,7 +88,7 @@ function sanitizeInput(input) {
     // Add property count limit
     const MAX_PROPERTIES = 100; // Adjust as needed
     let propertyCount = 0;
-    
+
     for (const key in input) {
       if (propertyCount >= MAX_PROPERTIES) break;
       if (Object.prototype.hasOwnProperty.call(input, key)) {

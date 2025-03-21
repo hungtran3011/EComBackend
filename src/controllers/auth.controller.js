@@ -409,7 +409,7 @@ const handleRefreshToken = (req, res) => {
  * @param {object} res - Express response object
  * @returns {void}
  */
-const handleLogout = (req, res) => {
+const handleLogout = async (req, res) => {
   const { id } = req.params;
   if (!id) {
     return res.status(400).json({ message: "User ID is required" });
@@ -434,13 +434,6 @@ const handleLogout = (req, res) => {
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
-  User.findByIdAndUpdate(id, { refreshToken: null }, { new: true })
-    .then(() => {
-      res.status(200).json({ message: "Logout successfully" });
-    })
-    .catch((err) => {
-      res.status(500).json({ message: err.message });
-    })
 }
 
 const AuthControllers = {
