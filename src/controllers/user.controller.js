@@ -3,6 +3,7 @@ import { config } from "dotenv";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
+import { sanitizeInput } from "../sanitize.js";
 
 config();
 
@@ -363,14 +364,14 @@ const createNonRegisteredUser = async (req, res) => {
 
     // Create new user with sanitized inputs
     const newUser = new User({
-      name: name.trim(),
-      email: email ? email.trim().toLowerCase() : undefined,
-      phoneNumber: phoneNumber.trim(),
+      name: sanitizeInput(name.trim()),
+      email: email ? sanitizeInput(email.trim().toLowerCase()) : undefined,
+      phoneNumber: sanitizeInput(phoneNumber.trim()),
       address,
       isRegistered: false,
       role: "anon",
       password: "",
-      refreshToken: "" // Empty refresh token for non-registered users
+      refreshToken: ""
     });
 
     await newUser.save();
@@ -558,7 +559,7 @@ const updateUser = async (req, res) => {
     // Update user with sanitized data
     const updatedUser = await User.findOneAndUpdate(
       { _id: id },
-      updateData,
+      sanitizeInput(updateData),
       { new: true, runValidators: true }
     ).select('-password -refreshToken -__v');
 
