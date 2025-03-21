@@ -53,8 +53,8 @@ function sanitizeInput(input) {
 
     // NoSQL injection protection - avoid potential catastrophic backtracking
     sanitized = sanitized
-      .replace(/\$/g, "")           // Remove MongoDB operators like $eq, $gt - simpler approach
-      .replace(/^{[^}]*}$/, "");    // More controlled pattern to remove objects
+      .replace(/\$(?=[a-z])/gi, "") // Remove MongoDB operators ($eq, $gt) but keep $ in other contexts
+      .replace(/\{\s*\$[a-z]+\s*:/gi, "{"); // Remove MongoDB operator objects but keep valid JSON
 
     // Basic XSS protection
     sanitized = sanitized
