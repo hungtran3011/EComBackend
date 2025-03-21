@@ -46,16 +46,15 @@ function sanitizeInput(input) {
       .trim();                       // Trim whitespace
 
     // Use simpler, non-backtracking approach to remove SQL patterns
-    // Instead of complex regex with capturing groups, use a simpler approach
-    sanitized = sanitized.split(/\s+OR\s+/i).join(" ");
-    sanitized = sanitized.split(/\s+AND\s+/i).join(" ");
+    // Instead of using regex with unbounded quantifiers, use string operations
+    sanitized = sanitized.toLowerCase().includes(' or ') ? sanitized.split(/ or /i).join(" ") : sanitized;
+    sanitized = sanitized.toLowerCase().includes(' and ') ? sanitized.split(/ and /i).join(" ") : sanitized;
     sanitized = sanitized.replace(/;/g, "");
 
-
-    // NoSQL injection protection
+    // NoSQL injection protection - avoid potential catastrophic backtracking
     sanitized = sanitized
-      .replace(/\$(?={)/g, "")      // Remove MongoDB operators like $eq, $gt
-      .replace(/^\{.*\}$/, "")      // Remove objects that could be used for injection
+      .replace(/\$/g, "")           // Remove MongoDB operators like $eq, $gt - simpler approach
+      .replace(/^{[^}]*}$/, "");    // More controlled pattern to remove objects
 
     // Basic XSS protection
     sanitized = sanitized
