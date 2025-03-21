@@ -1,9 +1,4 @@
 /**
- * Làm sạch đầu vào từ người dùng để ngăn chặn SQL injection và các vấn đề bảo mật khác
- * @param {any} input - Dữ liệu đầu vào từ người dùng cần làm sạch
- * @returns {any} - Dữ liệu đã được làm sạch
- */
-/**
  * @description Hàm này làm sạch dữ liệu đầu vào để ngăn chặn tấn công SQL injection.
  * Nó xử lý nhiều loại dữ liệu khác nhau bao gồm chuỗi, số, boolean, mảng và đối tượng.
  * Đối với chuỗi, hàm sẽ thoát các ký tự đặc biệt và loại bỏ các mẫu tấn công SQL phổ biến.
@@ -23,6 +18,7 @@
  * // Làm sạch một mảng
  * sanitizeInput(["John's", "Mary's"]); // Kết quả: ["John''s", "Mary''s"]
  */
+
 function sanitizeInput(input) {
   // Xử lý giá trị null hoặc undefined
   if (input === null || input === undefined) {
@@ -92,7 +88,7 @@ function sanitizeInput(input) {
     const sanitized = {};
     // Thêm giới hạn số lượng thuộc tính
     const MAX_PROPERTIES = 100; // Điều chỉnh theo nhu cầu
-    
+  }
   // Handle arrays
   if (Array.isArray(input)) {
     // Add array size limit
