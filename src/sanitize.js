@@ -92,6 +92,19 @@ function sanitizeInput(input) {
     const sanitized = {};
     // Thêm giới hạn số lượng thuộc tính
     const MAX_PROPERTIES = 100; // Điều chỉnh theo nhu cầu
+    
+  // Handle arrays
+  if (Array.isArray(input)) {
+    // Add array size limit
+    const MAX_ARRAY_LENGTH = 100; // Adjust as needed
+    return input.slice(0, MAX_ARRAY_LENGTH).map(item => sanitizeInput(item));
+  }
+
+  // Handle objects
+  if (typeof input === 'object') {
+    const sanitized = {};
+    // Add property count limit
+    const MAX_PROPERTIES = 100; // Adjust as needed
     let propertyCount = 0;
 
     for (const key in input) {
