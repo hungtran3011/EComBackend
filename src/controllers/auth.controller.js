@@ -234,7 +234,8 @@ const signIn = async (req, res) => {
       $or: [
         { email },
         { phoneNumber }
-      ]
+      ],
+      isRegistered: true
     });
     
     if (!user) {
