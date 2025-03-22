@@ -10,7 +10,7 @@ router.route("/")
   .post(IPRateLimiter, userMiddleware, ProductControllers.createProduct);
 
 router.route("/:id")
-  .get(ProductControllers.getProductById)
+  .get(IPRateLimiter, ProductControllers.getProductById)
   .put(IPRateLimiter, userMiddleware, ProductControllers.updateProduct)
   .delete(IPRateLimiter, userMiddleware, ProductControllers.deleteProduct);
 
@@ -19,7 +19,7 @@ router.route("/categories")
   .post(IPRateLimiter, userMiddleware, ProductControllers.createCategory);
 
 router.route("/categories/:id")
-  .get(ProductControllers.getCategoryById)
+  .get(IPRateLimiter, ProductControllers.getCategoryById)
   .put(IPRateLimiter, userMiddleware, ProductControllers.updateCategory)
   .delete(IPRateLimiter, userMiddleware, ProductControllers.deleteCategory);
 
