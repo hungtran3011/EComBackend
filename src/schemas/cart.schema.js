@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { CartItem } from "./types.schema.js";
 
 /**
+ * @module schemas
  * @name Cart
  * @author hungtran3011
  * @description A user's shopping cart containing items they intend to purchase

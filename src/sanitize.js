@@ -1,8 +1,21 @@
 /**
- * @description Hàm này làm sạch dữ liệu đầu vào để ngăn chặn tấn công SQL injection.
- * Nó xử lý nhiều loại dữ liệu khác nhau bao gồm chuỗi, số, boolean, mảng và đối tượng.
- * Đối với chuỗi, hàm sẽ thoát các ký tự đặc biệt và loại bỏ các mẫu tấn công SQL phổ biến.
- * Đối với mảng và đối tượng, hàm sẽ đệ quy để làm sạch từng phần tử.
+ * @description Hàm này làm sạch dữ liệu đầu vào để ngăn chặn các loại tấn công bao gồm SQL injection, 
+ * NoSQL injection, XSS và ReDoS.
+ * Xử lý nhiều loại dữ liệu khác nhau bao gồm chuỗi, số, boolean, mảng và đối tượng.
+ * 
+ * Các biện pháp bảo vệ bao gồm:
+ * - Đối với chuỗi: 
+ *   + Giới hạn độ dài (mặc định 1000 ký tự) để ngăn ReDoS
+ *   + Thoát các ký tự đặc biệt (', \, null bytes)
+ *   + Loại bỏ các mẫu tấn công SQL phổ biến (OR, AND, ;)
+ *   + Bảo vệ chống NoSQL injection (loại bỏ toán tử MongoDB)
+ *   + Bảo vệ chống XSS (mã hóa HTML và loại bỏ JavaScript events)
+ * - Đối với mảng: 
+ *   + Giới hạn kích thước mảng (mặc định 100 phần tử)
+ *   + Đệ quy để làm sạch từng phần tử
+ * - Đối với đối tượng: 
+ *   + Giới hạn số lượng thuộc tính (mặc định 100)
+ *   + Đệ quy để làm sạch từng giá trị thuộc tính
  * 
  * @param {*} input - Dữ liệu đầu vào cần được làm sạch, có thể là bất kỳ kiểu dữ liệu nào
  * 
@@ -19,7 +32,7 @@
  * sanitizeInput(["John's", "Mary's"]); // Kết quả: ["John''s", "Mary''s"]
  */
 
-function sanitizeInput(input) {
+const sanitizeInput = (input) => {
   // Xử lý giá trị null hoặc undefined
   if (input === null || input === undefined) {
     return input;
@@ -88,19 +101,6 @@ function sanitizeInput(input) {
     const sanitized = {};
     // Thêm giới hạn số lượng thuộc tính
     const MAX_PROPERTIES = 100; // Điều chỉnh theo nhu cầu
-  }
-  // Handle arrays
-  if (Array.isArray(input)) {
-    // Add array size limit
-    const MAX_ARRAY_LENGTH = 100; // Adjust as needed
-    return input.slice(0, MAX_ARRAY_LENGTH).map(item => sanitizeInput(item));
-  }
-
-  // Handle objects
-  if (typeof input === 'object') {
-    const sanitized = {};
-    // Add property count limit
-    const MAX_PROPERTIES = 100; // Adjust as needed
     let propertyCount = 0;
 
     for (const key in input) {
@@ -117,4 +117,4 @@ function sanitizeInput(input) {
   return input;
 }
 
-module.exports = { sanitizeInput };
+export {sanitizeInput}
