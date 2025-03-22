@@ -56,9 +56,20 @@ const sanitizeInput = (input) => {
 
     // Sử dụng phương pháp đơn giản hơn, không backtracking để loại bỏ các mẫu SQL
     // Thay vì sử dụng regex với quantifiers không giới hạn, sử dụng thao tác chuỗi
-    sanitized = sanitized.toLowerCase().includes(' or ') ? sanitized.split(/ or /i).join(" ") : sanitized;
-    sanitized = sanitized.toLowerCase().includes(' and ') ? sanitized.split(/ and /i).join(" ") : sanitized;
-    sanitized = sanitized.replace(/;/g, "");
+    
+    // Thay thế cách tiếp cận đơn giản với phương pháp nhận biết ngữ cảnh hơn
+    // Chỉ nhắm vào các mẫu tấn công SQL thực sự, không phải từ thông thường
+    sanitized = sanitized
+      // Nhắm vào mẫu SQL injection dạng: ' OR '1'='1
+      .replace(/'\s+OR\s+'.*?'='.*?'/gi, "' '")
+      .replace(/"\s+OR\s+".*?"=".*?"/gi, '" "')
+      // Nhắm vào mẫu SQL injection dạng: ' AND '1'='1
+      .replace(/'\s+AND\s+'.*?'='.*?'/gi, "' '")
+      .replace(/"\s+AND\s+".*?"=".*?"/gi, '" "')
+      // Nhắm vào mẫu SQL injection đơn giản hơn
+      .replace(/'\s+OR\s+[0-9]+=[0-9]+/gi, "' ")
+      .replace(/'\s+AND\s+[0-9]+=[0-9]+/gi, "' ")
+      .replace(/;/g, "");
 
     // Bảo vệ chống NoSQL injection - tránh backtracking thảm họa
     sanitized = sanitized

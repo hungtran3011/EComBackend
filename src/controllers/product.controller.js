@@ -137,14 +137,14 @@ const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) {
-      return res.status(400).json({ message: "ID sản phẩm không được để trống" });
+      return res.status(400).json({ message: "Product ID cannot be empty" });
     }
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "ID sản phẩm không hợp lệ" });
+      return res.status(400).json({ message: "Invalid product ID" });
     }
     const product = await Product.findById(id);
     if (!product) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+      return res.status(404).json({ message: "Product not found" });
     }
     res.status(200).json(ProductSchema.parse(product))
   }
@@ -311,7 +311,8 @@ const updateProduct = async (req, res) => {
       price: price,
       category: category,
     })
-    await Product.findByIdAndUpdate(id, updatedProduct, {new: true});
+    const result = await Product.findByIdAndUpdate(id, updatedProduct, {new: true});
+    if (!result) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
     return res.status(200).json(ProductSchema.parse(updatedProduct));
   }
   catch (error) {
@@ -657,7 +658,8 @@ const updateCategory = async (req, res) => {
       description: description,
       fields: fields,
     })
-    await Category.findByIdAndUpdate(id, updatedCategory, {new: true});
+    const result = await Category.findByIdAndUpdate(id, updatedCategory, {new: true});
+    if (!result) return res.status(404).json({ message: "Không tìm thấy danh mục" });
     return res.status(200).json(CategoryZSchema.parse(updatedCategory));
   }
   catch (error) {
