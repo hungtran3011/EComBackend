@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.git
+.github
+.gitignore
+.env
+.env.*
+*.md
+Dockerfile*
+docker-compose*
+logs
+docs

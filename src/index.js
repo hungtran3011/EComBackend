@@ -3,6 +3,7 @@ import { config } from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 import morgan from "morgan";
+import helmet from "helmet";
 import fs from 'fs';
 import path from "path";
 import { fileURLToPath } from 'url';
@@ -36,6 +37,7 @@ mongoose.connect(queryString, {
   console.error(error);
 })
 
+app.use(helmet())
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json()) // Add this to parse JSON request bodies
 

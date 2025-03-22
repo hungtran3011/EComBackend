@@ -1,13 +1,21 @@
 /**
- * Làm sạch đầu vào từ người dùng để ngăn chặn SQL injection và các vấn đề bảo mật khác
- * @param {any} input - Dữ liệu đầu vào từ người dùng cần làm sạch
- * @returns {any} - Dữ liệu đã được làm sạch
- */
-/**
- * @description Hàm này làm sạch dữ liệu đầu vào để ngăn chặn tấn công SQL injection.
- * Nó xử lý nhiều loại dữ liệu khác nhau bao gồm chuỗi, số, boolean, mảng và đối tượng.
- * Đối với chuỗi, hàm sẽ thoát các ký tự đặc biệt và loại bỏ các mẫu tấn công SQL phổ biến.
- * Đối với mảng và đối tượng, hàm sẽ đệ quy để làm sạch từng phần tử.
+ * @description Hàm này làm sạch dữ liệu đầu vào để ngăn chặn các loại tấn công bao gồm SQL injection, 
+ * NoSQL injection, XSS và ReDoS.
+ * Xử lý nhiều loại dữ liệu khác nhau bao gồm chuỗi, số, boolean, mảng và đối tượng.
+ * 
+ * Các biện pháp bảo vệ bao gồm:
+ * - Đối với chuỗi: 
+ *   + Giới hạn độ dài (mặc định 1000 ký tự) để ngăn ReDoS
+ *   + Thoát các ký tự đặc biệt (', \, null bytes)
+ *   + Loại bỏ các mẫu tấn công SQL phổ biến (OR, AND, ;)
+ *   + Bảo vệ chống NoSQL injection (loại bỏ toán tử MongoDB)
+ *   + Bảo vệ chống XSS (mã hóa HTML và loại bỏ JavaScript events)
+ * - Đối với mảng: 
+ *   + Giới hạn kích thước mảng (mặc định 100 phần tử)
+ *   + Đệ quy để làm sạch từng phần tử
+ * - Đối với đối tượng: 
+ *   + Giới hạn số lượng thuộc tính (mặc định 100)
+ *   + Đệ quy để làm sạch từng giá trị thuộc tính
  * 
  * @param {*} input - Dữ liệu đầu vào cần được làm sạch, có thể là bất kỳ kiểu dữ liệu nào
  * 
@@ -23,7 +31,8 @@
  * // Làm sạch một mảng
  * sanitizeInput(["John's", "Mary's"]); // Kết quả: ["John''s", "Mary''s"]
  */
-function sanitizeInput(input) {
+
+const sanitizeInput = (input) => {
   // Xử lý giá trị null hoặc undefined
   if (input === null || input === undefined) {
     return input;
@@ -47,9 +56,20 @@ function sanitizeInput(input) {
 
     // Sử dụng phương pháp đơn giản hơn, không backtracking để loại bỏ các mẫu SQL
     // Thay vì sử dụng regex với quantifiers không giới hạn, sử dụng thao tác chuỗi
-    sanitized = sanitized.toLowerCase().includes(' or ') ? sanitized.split(/ or /i).join(" ") : sanitized;
-    sanitized = sanitized.toLowerCase().includes(' and ') ? sanitized.split(/ and /i).join(" ") : sanitized;
-    sanitized = sanitized.replace(/;/g, "");
+    
+    // Thay thế cách tiếp cận đơn giản với phương pháp nhận biết ngữ cảnh hơn
+    // Chỉ nhắm vào các mẫu tấn công SQL thực sự, không phải từ thông thường
+    sanitized = sanitized
+      // Nhắm vào mẫu SQL injection dạng: ' OR '1'='1
+      .replace(/'\s+OR\s+'.*?'='.*?'/gi, "' '")
+      .replace(/"\s+OR\s+".*?"=".*?"/gi, '" "')
+      // Nhắm vào mẫu SQL injection dạng: ' AND '1'='1
+      .replace(/'\s+AND\s+'.*?'='.*?'/gi, "' '")
+      .replace(/"\s+AND\s+".*?"=".*?"/gi, '" "')
+      // Nhắm vào mẫu SQL injection đơn giản hơn
+      .replace(/'\s+OR\s+[0-9]+=[0-9]+/gi, "' ")
+      .replace(/'\s+AND\s+[0-9]+=[0-9]+/gi, "' ")
+      .replace(/;/g, "");
 
     // Bảo vệ chống NoSQL injection - tránh backtracking thảm họa
     sanitized = sanitized
@@ -92,19 +112,6 @@ function sanitizeInput(input) {
     const sanitized = {};
     // Thêm giới hạn số lượng thuộc tính
     const MAX_PROPERTIES = 100; // Điều chỉnh theo nhu cầu
-    
-  // Handle arrays
-  if (Array.isArray(input)) {
-    // Add array size limit
-    const MAX_ARRAY_LENGTH = 100; // Adjust as needed
-    return input.slice(0, MAX_ARRAY_LENGTH).map(item => sanitizeInput(item));
-  }
-
-  // Handle objects
-  if (typeof input === 'object') {
-    const sanitized = {};
-    // Add property count limit
-    const MAX_PROPERTIES = 100; // Adjust as needed
     let propertyCount = 0;
 
     for (const key in input) {
@@ -121,4 +128,4 @@ function sanitizeInput(input) {
   return input;
 }
 
-module.exports = { sanitizeInput };
+export {sanitizeInput}
