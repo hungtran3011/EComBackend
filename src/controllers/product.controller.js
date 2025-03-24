@@ -3,6 +3,12 @@ import { z } from "zod";
 
 import { Product, Category } from "../schemas/product.schema.js";
 
+// Custom validator for MongoDB ObjectId
+const objectIdValidator = (val) => {
+  if (!val) return true; // Allow empty values (will be caught by .min() if needed)
+  return mongoose.Types.ObjectId.isValid(val);
+};
+
 export const ProductInputSchema = z.object({
   name: z.string()
     .min(1, "Product name cannot be empty")
@@ -19,7 +25,7 @@ export const ProductInputSchema = z.object({
     .transform(val => Math.round(val * 100) / 100), // Round to 2 decimal places
     
   category: z.string()
-    .uuid("Invalid category ID format")
+    .refine(objectIdValidator, "Invalid category ID format")
     .optional(),
     
   fields: z.array(
@@ -33,7 +39,9 @@ export const ProductInputSchema = z.object({
     })
   ).max(50, "Too many custom fields").optional(),
   
-  createdBy: z.string().uuid("Invalid user ID format").optional()
+  createdBy: z.string()
+    .refine(objectIdValidator, "Invalid user ID format")
+    .optional()
 });
 
 const ProductListSchema = z.object({
@@ -44,7 +52,9 @@ const ProductListSchema = z.object({
 });
 
 const CategoryZSchema = z.object({
-  id: z.string().optional(),
+  id: z.string()
+    .refine(objectIdValidator, "Invalid category ID format")
+    .optional(),
   name: z.string()
     .min(1, "Tên danh mục không được để trống")
     .transform(val => val.trim()),
@@ -66,7 +76,9 @@ const CategoryZSchema = z.object({
     ], "Loại trường không hợp lệ"),
     required: z.boolean().default(false)
   })).optional(),
-  createdBy: z.string().optional(),
+  createdBy: z.string()
+    .refine(objectIdValidator, "Invalid user ID format")
+    .optional(),
 });
 
 /**
