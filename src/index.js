@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { corsOptions } from "./config/cors.config.js";
 import { MainRouter } from "./routes/index.js";
 import swaggerDocs from "./swagger.js";
+import { securityMiddleware } from "./middleware/security.middleware.js";
 
 
 // Create __dirname equivalent for ES modules
@@ -37,7 +38,7 @@ mongoose.connect(queryString, {
   console.error(error);
 })
 
-app.use(helmet())
+app.use(securityMiddleware(app)); // Apply security middleware
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json()) // Add this to parse JSON request bodies
 

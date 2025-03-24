@@ -14,9 +14,16 @@ config();
  */
 const UserSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, "Tên không được để trống"),
-  email: z.string().email("Email không hợp lệ").optional(),
-  phoneNumber: z.string().min(1, "Số điện thoại không được để trống"),
+  name: z.string()
+    .min(1, "Tên không được để trống")
+    .transform(val => val.trim()),
+  email: z.string()
+    .email("Email không hợp lệ")
+    .optional()
+    .transform(val => val ? val.trim().toLowerCase() : undefined),
+  phoneNumber: z.string()
+    .min(1, "Số điện thoại không được để trống")
+    .transform(val => val.trim()),
   address: z.object({
     homeNumber: z.string().optional(),
     street: z.string().optional(),
@@ -343,23 +350,22 @@ const createNonRegisteredUser = async (req, res) => {
 
     const { name, email, phoneNumber, address } = req.body;
 
-    // Initialize with a valid refresh token string to avoid validation errors
-
-    // Validate input data using UserSchema
+    // Validate and transform using the UserSchema
+    let validatedData;
     try {
-      UserSchema.parse({ name, email, phoneNumber, address });
+      validatedData = UserSchema.parse({ name, email, phoneNumber, address });
     } catch (validationError) {
       return res.status(400).json({ 
-      message: "Validation error", 
-      errors: validationError.errors 
+        message: "Validation error", 
+        errors: validationError.errors 
       });
     }
 
     // Check if user already exists before proceeding
     const existingUser = await User.findOne({
       $or: [
-      { email: email && email.trim().toLowerCase() },
-      { phoneNumber: phoneNumber && phoneNumber.trim() }
+        { email: validatedData.email },
+        { phoneNumber: validatedData.phoneNumber }
       ]
     });
 
@@ -367,12 +373,9 @@ const createNonRegisteredUser = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Create new user with sanitized inputs
+    // Create new user with validated data
     const newUser = new User({
-      name: sanitizeInput(name.trim()),
-      email: email ? sanitizeInput(email.trim().toLowerCase()) : undefined,
-      phoneNumber: sanitizeInput(phoneNumber.trim()),
-      address,
+      ...validatedData,
       isRegistered: false,
       role: "anon",
       password: "",
@@ -380,6 +383,7 @@ const createNonRegisteredUser = async (req, res) => {
     });
 
     await newUser.save();
+    
     // Remove sensitive data before sending response
     const userResponse = newUser.toObject();
     delete userResponse.password;

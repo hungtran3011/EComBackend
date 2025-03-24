@@ -2,24 +2,38 @@ import mongoose from "mongoose";
 import { z } from "zod";
 
 import { Product, Category } from "../schemas/product.schema.js";
-import { sanitizeInput } from "../sanitize.js";
 
-const ProductSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1, "Tên sản phẩm không được để trống"),
-  description: z.string().optional(),
-  price: z.number().min(0, "Giá sản phẩm không được âm"),
-  category: z.string().min(1, "Danh mục sản phẩm không được để trống"),
-  createdBy: z.string().optional(),
-}).transform((data) => {
-  return {
-    ...data,
-    name: sanitizeInput(data.name),
-    description: sanitizeInput(data.description),
-    price: data.price,
-    category: sanitizeInput(data.category),
-    createdBy: sanitizeInput(data.createdBy),
-  };
+export const ProductInputSchema = z.object({
+  name: z.string()
+    .min(1, "Product name cannot be empty")
+    .max(200, "Product name too long")
+    .transform(val => val.trim()),
+    
+  description: z.string()
+    .max(5000, "Description too long")
+    .optional()
+    .transform(val => val ? val.trim() : val),
+    
+  price: z.number()
+    .positive("Price must be positive")
+    .transform(val => Math.round(val * 100) / 100), // Round to 2 decimal places
+    
+  category: z.string()
+    .uuid("Invalid category ID format")
+    .optional(),
+    
+  fields: z.array(
+    z.object({
+      name: z.string().min(1, "Field name required").max(100),
+      type: z.enum([
+        'String', 'Number', 'Date', 'Boolean', 
+        'ObjectId', 'Array', 'Mixed'
+      ]),
+      required: z.boolean().default(false)
+    })
+  ).max(50, "Too many custom fields").optional(),
+  
+  createdBy: z.string().uuid("Invalid user ID format").optional()
 });
 
 const ProductListSchema = z.object({
@@ -31,10 +45,16 @@ const ProductListSchema = z.object({
 
 const CategoryZSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, "Tên danh mục không được để trống"),
-  description: z.string().optional(),
+  name: z.string()
+    .min(1, "Tên danh mục không được để trống")
+    .transform(val => val.trim()),
+  description: z.string()
+    .optional()
+    .transform(val => val ? val.trim() : val),
   fields: z.array(z.object({
-    name: z.string().min(1, "Tên trường không được để trống"),
+    name: z.string()
+      .min(1, "Tên trường không được để trống")
+      .transform(val => val.trim()),
     type: z.enum([
       'String', 
       'Number', 
@@ -47,18 +67,6 @@ const CategoryZSchema = z.object({
     required: z.boolean().default(false)
   })).optional(),
   createdBy: z.string().optional(),
-}).transform((data) => {
-  return {
-    ...data,
-    name: sanitizeInput(data.name),
-    description: sanitizeInput(data.description),
-    fields: data.fields?.map(field => ({
-      ...field,
-      name: sanitizeInput(field.name),
-      type: sanitizeInput(field.type),
-    })),
-    createdBy: sanitizeInput(data.createdBy),
-  };
 });
 
 /**
