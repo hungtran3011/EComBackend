@@ -9,7 +9,7 @@ const objectIdValidator = (val) => {
   return mongoose.Types.ObjectId.isValid(val);
 };
 
-export const ProductInputSchema = z.object({
+export const ProductSchema = z.object({
   name: z.string()
     .min(1, "Product name cannot be empty")
     .max(200, "Product name too long")
@@ -315,6 +315,8 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   const {id} = req.params;
   const {userId, role} = req.user;
+  
+  // Validation checks
   if (!id) 
     return res.status(400).json({ message: "ID sản phẩm không được để trống" });
   if (!userId)
@@ -323,17 +325,32 @@ const updateProduct = async (req, res) => {
     return res.status(401).json({message: "Admin only"})
   if (!mongoose.Types.ObjectId.isValid(id))
     return res.status(400).json({ message: "ID sản phẩm không hợp lệ" });
+    
   try {
-    const {name, description, price, category} = req.body;
-    const updatedProduct = ProductSchema.parse({
-      name: name,
-      description: description,
-      price: price,
-      category: category,
-    })
-    const result = await Product.findByIdAndUpdate(id, updatedProduct, {new: true});
-    if (!result) return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
-    return res.status(200).json(ProductSchema.parse(updatedProduct));
+    // Create an object with only the fields that are present in the request
+    const updateData = {};
+    const { name, description, price, category } = req.body;
+    
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (price !== undefined) updateData.price = price;
+    if (category !== undefined) updateData.category = category;
+    
+    // Validate the update data using partial schema validation
+    const validatedData = ProductInputSchema.partial().parse(updateData);
+    
+    // Update only the provided fields and return the updated document
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id, 
+      { $set: validatedData }, 
+      { new: true }
+    );
+    
+    if (!updatedProduct) 
+      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    
+    // Return the actual updated document from the database
+    return res.status(200).json(updatedProduct);
   }
   catch (error) {
     return res.status(500).json({ message: error.message });
@@ -663,27 +680,41 @@ const createCategory = async (req, res) => {
  * @param {*} res 
  */
 const updateCategory = async (req, res) => { 
-  const {id} = req.params
-  const {userId} = req.user;
-  if (!id) 
-    return res.status(400).json({ message: "ID danh mục không được để trống" });
-  if (!userId)
-    return res.status(401).json({ message: "No permission"})
-  if (!mongoose.Types.ObjectId.isValid(id))
-    return res.status(400).json({ message: "ID danh mục không hợp lệ" });
-  try {
-    const {name, description, fields} = req.body
-    const updatedCategory = CategoryZSchema.parse({
-      name: name,
-      description: description,
-      fields: fields,
-    })
-    const result = await Category.findByIdAndUpdate(id, updatedCategory, {new: true});
-    if (!result) return res.status(404).json({ message: "Không tìm thấy danh mục" });
-    return res.status(200).json(CategoryZSchema.parse(updatedCategory));
-  }
-  catch (error) {
-    return res.status(500).json({ message: error.message });
+  const updateCategory = async (req, res) => { 
+    const {id} = req.params
+    const {userId} = req.user;
+    
+    if (!id) 
+      return res.status(400).json({ message: "ID danh mục không được để trống" });
+    if (!userId)
+      return res.status(401).json({ message: "No permission"})
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res.status(400).json({ message: "ID danh mục không hợp lệ" });
+      
+    try {
+      const {name, description, fields} = req.body;
+      
+      // Validate only the fields that are provided
+      const validatedData = {};
+      if (name !== undefined) validatedData.name = CategoryZSchema.shape.name.parse(name);
+      if (description !== undefined) validatedData.description = CategoryZSchema.shape.description.parse(description);
+      if (fields !== undefined) validatedData.fields = CategoryZSchema.shape.fields.parse(fields);
+      
+      // Use $set to only update the provided fields
+      const result = await Category.findByIdAndUpdate(
+        id, 
+        { $set: validatedData }, 
+        { new: true }
+      );
+      
+      if (!result) return res.status(404).json({ message: "Không tìm thấy danh mục" });
+      
+      // Return the actual updated document from the database
+      return res.status(200).json(result);
+    }
+    catch (error) {
+      return res.status(500).json({ message: error.message });
+    }
   }
 }
 
