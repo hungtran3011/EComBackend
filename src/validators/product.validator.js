@@ -9,21 +9,45 @@ import mongoose from "mongoose";
 import { z } from "zod";
 
 /**
- * @name objectIdValidator
- * @description Hàm kiểm tra tính hợp lệ của MongoDB ObjectId
+ * @name isValidObjectIdWithOptions
+ * @author hungtran3011
+ * @description Hàm cốt lõi để kiểm tra tính hợp lệ của MongoDB ObjectId với các tùy chọn cấu hình
+ * @param {string|undefined|null} val - Giá trị cần kiểm tra
+ * @param {Object} [options] - Tùy chọn kiểm tra
+ * @param {boolean} [options.allowEmpty=false] - Cho phép giá trị undefined/null (cho trường không bắt buộc)
+ * @returns {boolean} true nếu giá trị hợp lệ theo tiêu chí, false nếu không hợp lệ
+ */
+const isValidObjectIdWithOptions = (val, options = { allowEmpty: false }) => {
+  // Xử lý các giá trị falsy (empty string, undefined, null)
+  if (!val) {
+    // Chuỗi rỗng luôn không hợp lệ
+    if (val === '') return false;
+    
+    // Với undefined/null, phụ thuộc vào tùy chọn
+    return options.allowEmpty;
+  }
+  
+  // Kiểm tra có phải là MongoDB ObjectId hợp lệ không
+  return mongoose.Types.ObjectId.isValid(val);
+};
+
+/**
+ * @name isValidSchemaObjectId
+ * @author hungtran3011
+ * @description Trình xác thực ObjectId cho schema Zod, cho phép undefined/null cho trường không bắt buộc
  * @param {string|undefined|null} val - Giá trị cần kiểm tra
  * @returns {boolean} true nếu giá trị là ObjectId hợp lệ hoặc undefined/null, false nếu không hợp lệ
  */
-const objectIdValidator = (val) => {
-  // Empty string should be rejected (return false)
-  if (val === '') return false;
-  
-  // undefined or null are allowed for optional fields (Zod handles this with .optional())
-  if (val === undefined || val === null) return true;
-  
-  // Verify it's a valid MongoDB ObjectId
-  return mongoose.Types.ObjectId.isValid(val);
-};
+const isValidObjectIdAllowEmpty = (val) => isValidObjectIdWithOptions(val, { allowEmpty: true });
+
+/**
+ * @name isValidMongoId
+ * @author hungtran3011
+ * @description Hàm trợ giúp kiểm tra ID MongoDB dùng trong controllers, yêu cầu ID phải tồn tại và hợp lệ
+ * @param {string} id - ID cần kiểm tra
+ * @returns {boolean} true nếu ID tồn tại và hợp lệ, false nếu không
+ */
+export const isValidMongoId = (id) => isValidObjectIdWithOptions(id);
 
 /**
  * @name ProductSchema
@@ -48,7 +72,7 @@ export const ProductSchema = z.object({
     .transform(val => Math.round(val * 100) / 100), // Round to 2 decimal places
     
   category: z.string()
-    .refine(objectIdValidator, "Invalid category ID format")
+    .refine(isValidObjectIdAllowEmpty, "Invalid category ID format")
     .optional(),
     
   fields: z.array(
@@ -63,7 +87,7 @@ export const ProductSchema = z.object({
   ).max(50, "Too many custom fields").optional(),
   
   createdBy: z.string()
-    .refine(objectIdValidator, "Invalid user ID format")
+    .refine(isValidObjectIdAllowEmpty, "Invalid user ID format")
     .optional()
 });
 
@@ -90,7 +114,7 @@ export const ProductListSchema = z.object({
  */
 export const CategorySchema = z.object({
   id: z.string()
-    .refine(objectIdValidator, "Invalid category ID format")
+    .refine(isValidObjectIdAllowEmpty, "Invalid category ID format")
     .optional(),
   name: z.string()
     .min(1, "Tên danh mục không được để trống")
@@ -114,24 +138,11 @@ export const CategorySchema = z.object({
     required: z.boolean().default(false)
   })).optional(),
   createdBy: z.string()
-    .refine(objectIdValidator, "Invalid user ID format")
+    .refine(isValidObjectIdAllowEmpty, "Invalid user ID format")
     .optional(),
 });
-
-/**
- * @name validateMongoId
- * @description Hàm trợ giúp kiểm tra ID MongoDB có hợp lệ hay không.
- * Khác với objectIdValidator, hàm này chỉ trả về true khi giá trị là ID MongoDB hợp lệ,
- * và false cho tất cả các trường hợp khác (bao gồm undefined, null, và chuỗi rỗng).
- * @param {string} id - ID cần kiểm tra
- * @returns {boolean} true nếu ID là hợp lệ, false nếu không hợp lệ
- */
-export const validateMongoId = (id) => {
-  if (!id || id === '') return false;
-  return mongoose.Types.ObjectId.isValid(id);
-};
 
 export const PaginationValidation = z.object({
   page: z.number().int().positive().default(1),
   limit: z.number().int().positive().default(10),
-})
+});

@@ -4,7 +4,7 @@ import {
   ProductSchema, 
   ProductListSchema, 
   CategorySchema, 
-  validateMongoId,
+  isValidMongoId,
   PaginationValidation 
 } from "../validators/product.validator.js";
 
@@ -86,7 +86,7 @@ const getProductById = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: "Product ID cannot be empty" });
     }
-    if (!validateMongoId(id)) {
+    if (!isValidMongoId(id)) {
       return res.status(400).json({ message: "Invalid product ID" });
     }
     const product = await Product.findById(id);
@@ -253,7 +253,7 @@ const updateProduct = async (req, res) => {
     return res.status(401).json({ message: "No permission"})
   if (role !== 'admin')
     return res.status(401).json({message: "Admin only"})
-  if (!validateMongoId(id))
+  if (!isValidMongoId(id))
     return res.status(400).json({ message: "ID sản phẩm không hợp lệ" });
     
   try {
@@ -336,7 +336,7 @@ const deleteProduct = async (req, res) => {
     return res.status(401).json({ message: "No permission"})
   if (role !== 'admin')
     return res.status(401).json({message: "Admin only"})
-  if (!validateMongoId(id))
+  if (!isValidMongoId(id))
     return res.status(400).json({ message: "ID sản phẩm không hợp lệ" });
   try {
     const deletedProduct = await Product.findByIdAndDelete(id);
@@ -432,7 +432,7 @@ const getCategoryById = async (req, res) => {
   const {id} = req.params
   if (!id) 
     return res.status(400).json({ message: "ID danh mục không được để trống" });
-  if (!validateMongoId(id))
+  if (!isValidMongoId(id))
     return res.status(400).json({ message: "ID danh mục không hợp lệ" });
   try {
     const category = await Category.findById(id);
@@ -617,7 +617,7 @@ const updateCategory = async (req, res) => {
     return res.status(400).json({ message: "ID danh mục không được để trống" });
   if (!userId)
     return res.status(401).json({ message: "No permission"})
-  if (!validateMongoId(id))
+  if (!isValidMongoId(id))
     return res.status(400).json({ message: "ID danh mục không hợp lệ" });
     
   try {
@@ -693,7 +693,7 @@ const deleteCategory = async (req, res) => {
     return res.status(400).json({ message: "ID danh mục không được để trống" });
   if (!userId)
     return res.status(401).json({ message: "No permission"})
-  if (!validateMongoId(id))
+  if (!isValidMongoId(id))
     return res.status(400).json({ message: "ID danh mục không hợp lệ" });
   try {
     const deletedCategory = await Category.findByIdAndDelete(id);
