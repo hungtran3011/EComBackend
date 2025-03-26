@@ -130,3 +130,8 @@ export const validateMongoId = (id) => {
   if (!id || id === '') return false;
   return mongoose.Types.ObjectId.isValid(id);
 };
+
+export const PaginationValidation = z.object({
+  page: z.number().int().positive().default(1),
+  limit: z.number().int().positive().default(10),
+})

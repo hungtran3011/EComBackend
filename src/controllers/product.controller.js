@@ -4,7 +4,8 @@ import {
   ProductSchema, 
   ProductListSchema, 
   CategorySchema, 
-  validateMongoId 
+  validateMongoId,
+  PaginationValidation 
 } from "../validators/product.validator.js";
 
 /**
@@ -33,7 +34,7 @@ import {
 
 const getAllProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10 } = PaginationValidation.parse(req.query);
     const startIndex = (page - 1) * limit;
     const total = await Product.countDocuments();
     const products = await Product.find().skip(startIndex).limit(limit);
