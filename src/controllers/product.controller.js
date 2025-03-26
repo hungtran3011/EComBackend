@@ -1,85 +1,11 @@
 import mongoose from "mongoose";
-import { z } from "zod";
-
 import { Product, Category } from "../schemas/product.schema.js";
-
-// Custom validator for MongoDB ObjectId
-const objectIdValidator = (val) => {
-  if (!val) return true; // Allow empty values (will be caught by .min() if needed)
-  return mongoose.Types.ObjectId.isValid(val);
-};
-
-export const ProductSchema = z.object({
-  name: z.string()
-    .min(1, "Product name cannot be empty")
-    .max(200, "Product name too long")
-    .transform(val => val.trim()),
-    
-  description: z.string()
-    .max(5000, "Description too long")
-    .optional()
-    .transform(val => val ? val.trim() : val),
-    
-  price: z.number()
-    .positive("Price must be positive")
-    .transform(val => Math.round(val * 100) / 100), // Round to 2 decimal places
-    
-  category: z.string()
-    .refine(objectIdValidator, "Invalid category ID format")
-    .optional(),
-    
-  fields: z.array(
-    z.object({
-      name: z.string().min(1, "Field name required").max(100),
-      type: z.enum([
-        'String', 'Number', 'Date', 'Boolean', 
-        'ObjectId', 'Array', 'Mixed'
-      ]),
-      required: z.boolean().default(false)
-    })
-  ).max(50, "Too many custom fields").optional(),
-  
-  createdBy: z.string()
-    .refine(objectIdValidator, "Invalid user ID format")
-    .optional()
-});
-
-const ProductListSchema = z.object({
-  page: z.number().optional(),
-  limit: z.number().optional(),
-  total: z.number().optional(),
-  products: z.array(ProductSchema),
-});
-
-const CategoryZSchema = z.object({
-  id: z.string()
-    .refine(objectIdValidator, "Invalid category ID format")
-    .optional(),
-  name: z.string()
-    .min(1, "Tên danh mục không được để trống")
-    .transform(val => val.trim()),
-  description: z.string()
-    .optional()
-    .transform(val => val ? val.trim() : val),
-  fields: z.array(z.object({
-    name: z.string()
-      .min(1, "Tên trường không được để trống")
-      .transform(val => val.trim()),
-    type: z.enum([
-      'String', 
-      'Number', 
-      'Date', 
-      'Boolean', 
-      'ObjectId', 
-      'Array', 
-      'Mixed'
-    ], "Loại trường không hợp lệ"),
-    required: z.boolean().default(false)
-  })).optional(),
-  createdBy: z.string()
-    .refine(objectIdValidator, "Invalid user ID format")
-    .optional(),
-});
+import { 
+  ProductSchema, 
+  ProductListSchema, 
+  CategorySchema, 
+  validateMongoId 
+} from "../validators/product.validator.js";
 
 /**
  * @swagger
@@ -159,7 +85,7 @@ const getProductById = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: "Product ID cannot be empty" });
     }
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!validateMongoId(id)) {
       return res.status(400).json({ message: "Invalid product ID" });
     }
     const product = await Product.findById(id);
@@ -172,7 +98,6 @@ const getProductById = async (req, res) => {
     res.status(500).json({ message: error.message })
   }
 }
-
 
 /**
  * @swagger
@@ -220,6 +145,10 @@ const getProductById = async (req, res) => {
  *         description: Bạn không có quyền thêm sản phẩm mới. Chỉ quản trị viên mới có đặc quyền này!
  *       500:
  *         description: Máy chủ gặp vấn đề khi thêm sản phẩm mới. Có lẽ kho dữ liệu đã hết chỗ?
+ */
+/**
+ * @name createProduct
+ * @description Creates a new product
  */
 const createProduct = async (req, res) => {
   try {
@@ -323,7 +252,7 @@ const updateProduct = async (req, res) => {
     return res.status(401).json({ message: "No permission"})
   if (role !== 'admin')
     return res.status(401).json({message: "Admin only"})
-  if (!mongoose.Types.ObjectId.isValid(id))
+  if (!validateMongoId(id))
     return res.status(400).json({ message: "ID sản phẩm không hợp lệ" });
     
   try {
@@ -337,7 +266,7 @@ const updateProduct = async (req, res) => {
     if (category !== undefined) updateData.category = category;
     
     // Validate the update data using partial schema validation
-    const validatedData = ProductInputSchema.partial().parse(updateData);
+    const validatedData = ProductSchema.partial().parse(updateData);
     
     // Update only the provided fields and return the updated document
     const updatedProduct = await Product.findByIdAndUpdate(
@@ -406,7 +335,7 @@ const deleteProduct = async (req, res) => {
     return res.status(401).json({ message: "No permission"})
   if (role !== 'admin')
     return res.status(401).json({message: "Admin only"})
-  if (!mongoose.Types.ObjectId.isValid(id))
+  if (!validateMongoId(id))
     return res.status(400).json({ message: "ID sản phẩm không hợp lệ" });
   try {
     const deletedProduct = await Product.findByIdAndDelete(id);
@@ -502,14 +431,14 @@ const getCategoryById = async (req, res) => {
   const {id} = req.params
   if (!id) 
     return res.status(400).json({ message: "ID danh mục không được để trống" });
-  if (!mongoose.Types.ObjectId.isValid(id))
+  if (!validateMongoId(id))
     return res.status(400).json({ message: "ID danh mục không hợp lệ" });
   try {
     const category = await Category.findById(id);
     if (!category) {
       return res.status(404).json({ message: "Không tìm thấy danh mục" });
     }
-    res.status(200).json(CategoryZSchema.parse(category));
+    res.status(200).json(CategorySchema.parse(category));
   }
   catch (error) {
     return res.status(500).json({message: error.message})
@@ -592,7 +521,7 @@ const createCategory = async (req, res) => {
   if (!name) 
     return res.status(400).json({ message: "Tên danh mục không được để trống" });
   try {
-    const newCategory = CategoryZSchema.parse({
+    const newCategory = CategorySchema.parse({
       name: name,
       description: description,
       fields: fields,
@@ -600,7 +529,7 @@ const createCategory = async (req, res) => {
     })
     const addedCategory = Category(newCategory);
     await addedCategory.save()
-    res.status(201).json(CategoryZSchema.parse(newCategory));
+    res.status(201).json(CategorySchema.parse(newCategory));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -680,41 +609,39 @@ const createCategory = async (req, res) => {
  * @param {*} res 
  */
 const updateCategory = async (req, res) => { 
-  const updateCategory = async (req, res) => { 
-    const {id} = req.params
-    const {userId} = req.user;
+  const {id} = req.params
+  const {userId} = req.user;
+  
+  if (!id) 
+    return res.status(400).json({ message: "ID danh mục không được để trống" });
+  if (!userId)
+    return res.status(401).json({ message: "No permission"})
+  if (!validateMongoId(id))
+    return res.status(400).json({ message: "ID danh mục không hợp lệ" });
     
-    if (!id) 
-      return res.status(400).json({ message: "ID danh mục không được để trống" });
-    if (!userId)
-      return res.status(401).json({ message: "No permission"})
-    if (!mongoose.Types.ObjectId.isValid(id))
-      return res.status(400).json({ message: "ID danh mục không hợp lệ" });
-      
-    try {
-      const {name, description, fields} = req.body;
-      
-      // Validate only the fields that are provided
-      const validatedData = {};
-      if (name !== undefined) validatedData.name = CategoryZSchema.shape.name.parse(name);
-      if (description !== undefined) validatedData.description = CategoryZSchema.shape.description.parse(description);
-      if (fields !== undefined) validatedData.fields = CategoryZSchema.shape.fields.parse(fields);
-      
-      // Use $set to only update the provided fields
-      const result = await Category.findByIdAndUpdate(
-        id, 
-        { $set: validatedData }, 
-        { new: true }
-      );
-      
-      if (!result) return res.status(404).json({ message: "Không tìm thấy danh mục" });
-      
-      // Return the actual updated document from the database
-      return res.status(200).json(result);
-    }
-    catch (error) {
-      return res.status(500).json({ message: error.message });
-    }
+  try {
+    const {name, description, fields} = req.body;
+    
+    // Validate only the fields that are provided
+    const validatedData = {};
+    if (name !== undefined) validatedData.name = CategorySchema.shape.name.parse(name);
+    if (description !== undefined) validatedData.description = CategorySchema.shape.description.parse(description);
+    if (fields !== undefined) validatedData.fields = CategorySchema.shape.fields.parse(fields);
+    
+    // Use $set to only update the provided fields
+    const result = await Category.findByIdAndUpdate(
+      id, 
+      { $set: validatedData }, 
+      { new: true }
+    );
+    
+    if (!result) return res.status(404).json({ message: "Không tìm thấy danh mục" });
+    
+    // Return the actual updated document from the database
+    return res.status(200).json(result);
+  }
+  catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 }
 
@@ -765,7 +692,7 @@ const deleteCategory = async (req, res) => {
     return res.status(400).json({ message: "ID danh mục không được để trống" });
   if (!userId)
     return res.status(401).json({ message: "No permission"})
-  if (!mongoose.Types.ObjectId.isValid(id))
+  if (!validateMongoId(id))
     return res.status(400).json({ message: "ID danh mục không hợp lệ" });
   try {
     const deletedCategory = await Category.findByIdAndDelete(id);
