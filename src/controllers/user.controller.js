@@ -354,9 +354,9 @@ const createNonRegisteredUser = async (req, res) => {
     try {
       validatedData = UserSchema.parse({ name, email, phoneNumber, address });
     } catch (validationError) {
-      return res.status(400).json({ 
-        message: "Validation error", 
-        errors: validationError.errors 
+      return res.status(400).json({
+        message: "Validation error",
+        errors: validationError.errors
       });
     }
 
@@ -382,7 +382,7 @@ const createNonRegisteredUser = async (req, res) => {
     });
 
     await newUser.save();
-    
+
     // Remove sensitive data before sending response
     const userResponse = newUser.toObject();
     delete userResponse.password;
@@ -545,37 +545,35 @@ const updateUser = async (req, res) => {
 
     // Extract data from request body
     const { name, email, phoneNumber, address } = req.body;
-    
+
     // Create update object with only provided fields
     const updateData = {};
-    
+
     if (name !== undefined) updateData.name = name.trim();
     if (email !== undefined) updateData.email = email.trim().toLowerCase();
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber.trim();
     if (address !== undefined) updateData.address = address;
-    
+
     // Validate the update data using Zod schema
     try {
-      UserSchema.parse(updateData);
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: id },
+        UserSchema.parse(updateData),
+        { new: true, runValidators: true }
+      ).select('-password -refreshToken -__v');
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res.status(200).json(updatedUser);
     } catch (validationError) {
-      return res.status(400).json({ 
-      message: "Validation error", 
-      errors: validationError.errors 
+      return res.status(400).json({
+        message: "Validation error",
+        errors: validationError.errors
       });
     }
-    
-    // Update user with sanitized data
-    const updatedUser = await User.findOneAndUpdate(
-      { _id: id },
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password -refreshToken -__v');
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    return res.status(200).json(updatedUser);
   } catch (e) {
     res.status(500).json({ message: e.message });
   }
