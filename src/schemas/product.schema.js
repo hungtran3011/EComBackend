@@ -49,11 +49,13 @@ export const FieldDefinitionSchema = mongoose.Schema({
  * @property {String} name - Tên danh mục, bắt buộc phải có
  * @property {String} description - Mô tả chi tiết về danh mục, không bắt buộc
  * @property {Array<FieldDefinitionSchema>} fields - Danh sách các trường dữ liệu của danh mục
+ * @property {mongoose.Schema.Types.ObjectId} createdBy - Tham chiếu đến người tạo danh mục
  */
 export const CategorySchema = mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, required: false },
   fields: [FieldDefinitionSchema],
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 });
 
 /**
@@ -62,7 +64,7 @@ export const CategorySchema = mongoose.Schema({
  * @type {mongoose.Model}
  * @description Model cho CategorySchema, cho phép thực hiện các thao tác CRUD trên danh mục
  */
-export const CategoryModel = mongoose.model(
+const CategoryModel = mongoose.model(
   'Category', 
   CategorySchema
 );
@@ -77,6 +79,7 @@ export const CategoryModel = mongoose.model(
  * @property {Number} price - Giá sản phẩm, bắt buộc phải có
  * @property {mongoose.Schema.Types.ObjectId} category - Tham chiếu đến danh mục chứa sản phẩm, bắt buộc phải có
  * @property {Array<FieldDefinitionSchema>} fields - Danh sách các trường dữ liệu tùy chỉnh của sản phẩm
+ * @property {mongoose.Schema.Types.ObjectId} createdBy - Tham chiếu đến người tạo sản phẩm
  * @property {Date} createdAt - Thời điểm tạo sản phẩm, mặc định là thời điểm hiện tại
  * @property {Date} updatedAt - Thời điểm cập nhật sản phẩm gần nhất, mặc định là thời điểm hiện tại
  */
@@ -90,6 +93,7 @@ export const ProductSchema = mongoose.Schema({
     required: true 
   },
   fields: [FieldDefinitionSchema],
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, {timestamp: true})
 
 /**
@@ -98,7 +102,9 @@ export const ProductSchema = mongoose.Schema({
  * @type {mongoose.Model}
  * @description Model cho ProductSchema, cho phép thực hiện các thao tác CRUD trên sản phẩm
  */
-export const ProductModel = mongoose.model(
+const ProductModel = mongoose.model(
   'Product', 
   ProductSchema
 );
+
+export {ProductModel as Product, CategoryModel as Category};
