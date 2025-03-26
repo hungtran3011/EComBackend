@@ -279,8 +279,9 @@ const updateProduct = async (req, res) => {
     if (!updatedProduct) 
       return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
     
-    // Return the actual updated document from the database
-    return res.status(200).json(updatedProduct);
+    // Parse the product through the schema to ensure consistent response format
+    // and remove any unwanted MongoDB fields like __v
+    return res.status(200).json(ProductSchema.parse(updatedProduct.toObject()));
   }
   catch (error) {
     return res.status(500).json({ message: error.message });
@@ -382,7 +383,7 @@ const deleteProduct = async (req, res) => {
  */
 const getAllCategories = async (req, res) => {
   try {
-    const categories = await Product.distinct("category");
+    const categories = await Category.find();
     res.status(200).json(categories);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -530,7 +531,7 @@ const createCategory = async (req, res) => {
     })
     const addedCategory = Category(newCategory);
     await addedCategory.save()
-    res.status(201).json(CategorySchema.parse(newCategory));
+    res.status(201).json(CategorySchema.parse(addedCategory.toObject()));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

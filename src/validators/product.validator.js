@@ -73,7 +73,7 @@ export const ProductSchema = z.object({
     
   category: z.string()
     .refine(isValidObjectIdAllowEmpty, "Invalid category ID format")
-    .optional(),
+    .min(1, "Category ID required"),
     
   fields: z.array(
     z.object({

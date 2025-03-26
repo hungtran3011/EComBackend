@@ -3,7 +3,6 @@ import { config } from "dotenv";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
-import { sanitizeInput } from "../sanitize.js";
 
 config();
 
@@ -568,7 +567,7 @@ const updateUser = async (req, res) => {
     // Update user with sanitized data
     const updatedUser = await User.findOneAndUpdate(
       { _id: id },
-      sanitizeInput(updateData),
+      updateData,
       { new: true, runValidators: true }
     ).select('-password -refreshToken -__v');
 
