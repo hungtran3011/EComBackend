@@ -174,7 +174,7 @@ const createProduct = async (req, res) => {
     })
     const addedProduct = Product(newProduct);
     await addedProduct.save()
-    res.status(201).json(ProductSchema.parse(newProduct));
+    res.status(201).json(ProductSchema.parse(addedProduct.toObject()));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -641,7 +641,7 @@ const updateCategory = async (req, res) => {
     if (!result) return res.status(404).json({ message: "Không tìm thấy danh mục" });
     
     // Return the actual updated document from the database
-    return res.status(200).json(result);
+    return res.status(200).json(CategoriesSchema.parse(result.toObject()));
   }
   catch (error) {
     return res.status(500).json({ message: error.message });
