@@ -71,9 +71,10 @@ export const ProductSchema = z.object({
     .positive("Price must be positive")
     .transform(val => Math.round(val * 100) / 100), // Round to 2 decimal places
     
+  // Fix: cannot chain .min() after .refine() - combined validation
   category: z.string()
-    .refine(isValidObjectIdAllowEmpty, "Invalid category ID format")
-    .min(1, "Category ID required"),
+    .min(1, "Category ID required")
+    .refine(isValidObjectIdAllowEmpty, "Invalid category ID format"),
     
   fields: z.array(
     z.object({
@@ -141,6 +142,10 @@ export const CategorySchema = z.object({
     .refine(isValidObjectIdAllowEmpty, "Invalid user ID format")
     .optional(),
 });
+
+export const CategoriesSchema = z.object([
+  CategorySchema
+])
 
 export const PaginationValidation = z.object({
   page: z.number().int().positive().default(1),

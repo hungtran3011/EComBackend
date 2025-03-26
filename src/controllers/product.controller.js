@@ -5,7 +5,8 @@ import {
   ProductListSchema, 
   CategorySchema, 
   isValidMongoId,
-  PaginationValidation 
+  PaginationValidation,
+  CategoriesSchema,
 } from "../validators/product.validator.js";
 
 /**
@@ -384,7 +385,7 @@ const deleteProduct = async (req, res) => {
 const getAllCategories = async (req, res) => {
   try {
     const categories = await Category.find();
-    res.status(200).json(categories);
+    res.status(200).json(CategoriesSchema.parse(categories));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

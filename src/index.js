@@ -13,7 +13,6 @@ import { MainRouter } from "./routes/index.js";
 import swaggerDocs from "./swagger.js";
 import { securityMiddleware } from "./middleware/security.middleware.js";
 
-
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,7 +37,9 @@ mongoose.connect(queryString, {
   console.error(error);
 })
 
-app.use(securityMiddleware(app)); // Apply security middleware
+// FIX: Call securityMiddleware directly instead of using its return value
+securityMiddleware(app); // Apply security middleware
+
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json()) // Add this to parse JSON request bodies
 
