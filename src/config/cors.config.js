@@ -1,7 +1,7 @@
 const whiteList = [
   "http://localhost:8080", 
   "http://localhost:3000", 
-  "https://myapp.com"
+  "http://localhost:5555"
 ];
 
 export const corsOptions = {

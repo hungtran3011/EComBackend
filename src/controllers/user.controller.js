@@ -3,15 +3,26 @@ import { config } from "dotenv";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
-import { sanitizeInput } from "../sanitize.js";
 
 config();
 
+/**
+ * @name UserSchema
+ * @author hungtran3011
+ * @description Schema viết bằng Zod để xác thực và kiểm tra tính hợp lệ của dữ liệu người dùng trước khi thực hiện các thao tác CRUD trong hệ thống. Schema này đảm bảo tất cả dữ liệu người dùng đều tuân thủ cấu trúc và ràng buộc đã định nghĩa.
+ */
 const UserSchema = z.object({
   id: z.string().optional(),
-  name: z.string().min(1, "Tên không được để trống"),
-  email: z.string().email("Email không hợp lệ").optional(),
-  phoneNumber: z.string().min(1, "Số điện thoại không được để trống"),
+  name: z.string()
+    .min(1, "Tên không được để trống")
+    .transform(val => val.trim()),
+  email: z.string()
+    .email("Email không hợp lệ")
+    .optional()
+    .transform(val => val ? val.trim().toLowerCase() : undefined),
+  phoneNumber: z.string()
+    .min(1, "Số điện thoại không được để trống")
+    .transform(val => val.trim()),
   address: z.object({
     homeNumber: z.string().optional(),
     street: z.string().optional(),
@@ -338,23 +349,22 @@ const createNonRegisteredUser = async (req, res) => {
 
     const { name, email, phoneNumber, address } = req.body;
 
-    // Initialize with a valid refresh token string to avoid validation errors
-
-    // Validate input data using UserSchema
+    // Validate and transform using the UserSchema
+    let validatedData;
     try {
-      UserSchema.parse({ name, email, phoneNumber, address });
+      validatedData = UserSchema.parse({ name, email, phoneNumber, address });
     } catch (validationError) {
-      return res.status(400).json({ 
-      message: "Validation error", 
-      errors: validationError.errors 
+      return res.status(400).json({
+        message: "Validation error",
+        errors: validationError.errors
       });
     }
 
     // Check if user already exists before proceeding
     const existingUser = await User.findOne({
       $or: [
-      { email: email && email.trim().toLowerCase() },
-      { phoneNumber: phoneNumber && phoneNumber.trim() }
+        { email: validatedData.email },
+        { phoneNumber: validatedData.phoneNumber }
       ]
     });
 
@@ -362,12 +372,9 @@ const createNonRegisteredUser = async (req, res) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Create new user with sanitized inputs
+    // Create new user with validated data
     const newUser = new User({
-      name: sanitizeInput(name.trim()),
-      email: email ? sanitizeInput(email.trim().toLowerCase()) : undefined,
-      phoneNumber: sanitizeInput(phoneNumber.trim()),
-      address,
+      ...validatedData,
       isRegistered: false,
       role: "anon",
       password: "",
@@ -375,6 +382,7 @@ const createNonRegisteredUser = async (req, res) => {
     });
 
     await newUser.save();
+
     // Remove sensitive data before sending response
     const userResponse = newUser.toObject();
     delete userResponse.password;
@@ -537,37 +545,35 @@ const updateUser = async (req, res) => {
 
     // Extract data from request body
     const { name, email, phoneNumber, address } = req.body;
-    
+
     // Create update object with only provided fields
     const updateData = {};
-    
+
     if (name !== undefined) updateData.name = name.trim();
     if (email !== undefined) updateData.email = email.trim().toLowerCase();
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber.trim();
     if (address !== undefined) updateData.address = address;
-    
+
     // Validate the update data using Zod schema
     try {
-      UserSchema.parse(updateData);
+      const updatedUser = await User.findOneAndUpdate(
+        { _id: id },
+        UserSchema.parse(updateData),
+        { new: true, runValidators: true }
+      ).select('-password -refreshToken -__v');
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      return res.status(200).json(updatedUser);
     } catch (validationError) {
-      return res.status(400).json({ 
-      message: "Validation error", 
-      errors: validationError.errors 
+      return res.status(400).json({
+        message: "Validation error",
+        errors: validationError.errors
       });
     }
-    
-    // Update user with sanitized data
-    const updatedUser = await User.findOneAndUpdate(
-      { _id: id },
-      sanitizeInput(updateData),
-      { new: true, runValidators: true }
-    ).select('-password -refreshToken -__v');
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    return res.status(200).json(updatedUser);
   } catch (e) {
     res.status(500).json({ message: e.message });
   }

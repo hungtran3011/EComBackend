@@ -3,6 +3,7 @@ import { config } from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 import morgan from "morgan";
+import helmet from "helmet";
 import fs from 'fs';
 import path from "path";
 import { fileURLToPath } from 'url';
@@ -10,7 +11,7 @@ import { fileURLToPath } from 'url';
 import { corsOptions } from "./config/cors.config.js";
 import { MainRouter } from "./routes/index.js";
 import swaggerDocs from "./swagger.js";
-
+import { securityMiddleware } from "./middleware/security.middleware.js";
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -35,6 +36,9 @@ mongoose.connect(queryString, {
 }).catch((error) => {
   console.error(error);
 })
+
+// FIX: Call securityMiddleware directly instead of using its return value
+securityMiddleware(app); // Apply security middleware
 
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json()) // Add this to parse JSON request bodies

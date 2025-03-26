@@ -4,6 +4,18 @@
 
 Đây là phần backend của dự án, viết bằng ExpressJS và JS (f*** JS)
 
+## Mô tả
+
+Backend này được xây dựng để hỗ trợ ứng dụng thương mại điện tử với các chức năng chính:
+
+- Quản lý người dùng (đăng ký, đăng nhập, phân quyền)
+- Quản lý sản phẩm (thêm, sửa, xóa, tìm kiếm)
+- Quản lý đơn hàng (tạo đơn, theo dõi trạng thái, thanh toán)
+- API tích hợp với các dịch vụ bên thứ ba (thanh toán, vận chuyển)
+- Hệ thống thông báo (email, push notification)
+
+Được xây dựng trên kiến trúc RESTful API, sử dụng ExpressJS làm framework chính, kết hợp với MongoDB làm cơ sở dữ liệu. Hệ thống có khả năng mở rộng và tối ưu hóa hiệu suất cho việc xử lý số lượng lớn giao dịch.
+
 ## Sử dụng
 
 ### Cài đặt gói
