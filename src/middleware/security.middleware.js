@@ -2,6 +2,7 @@ import helmet from "helmet";
 import mongoSanitize from "express-mongo-sanitize";
 import { rateLimit } from "express-rate-limit";
 import xssClean from "xss-clean";
+import csrfMiddleware from "./csrf.middleware";
 
 export const securityMiddleware = (app) => {
   // Apply Helmet (sets various HTTP headers)
@@ -38,4 +39,7 @@ export const securityMiddleware = (app) => {
       upgradeInsecureRequests: []
     }
   }));
+
+  // CSRF protection
+  app.use(csrfMiddleware());
 };

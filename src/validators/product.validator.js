@@ -56,7 +56,7 @@ export const isValidMongoId = (id) => isValidObjectIdWithOptions(id);
  * và làm tròn giá tiền.
  * @type {z.ZodObject}
  */
-export const ProductSchema = z.object({
+export const ProductValidationSchema = z.object({
   name: z.string()
     .min(1, "Product name cannot be empty")
     .max(200, "Product name too long")
@@ -93,27 +93,27 @@ export const ProductSchema = z.object({
 });
 
 /**
- * @name ProductListSchema
+ * @name ProductListValidationSchema
  * @description Schema xác thực danh sách sản phẩm kèm thông tin phân trang.
  * Được sử dụng để đảm bảo dữ liệu trả về khi lấy danh sách sản phẩm có cấu trúc phù hợp,
  * bao gồm số trang, giới hạn sản phẩm trên mỗi trang, tổng số sản phẩm và danh sách sản phẩm.
  * @type {z.ZodObject}
  */
-export const ProductListSchema = z.object({
+export const ProductListValidationSchema = z.object({
   page: z.number().optional(),
   limit: z.number().optional(),
   total: z.number().optional(),
-  products: z.array(ProductSchema),
+  products: z.array(ProductValidationSchema),
 });
 
 /**
- * @name CategorySchema
+ * @name CategoryValidationSchema
  * @description Schema xác thực dữ liệu danh mục sản phẩm.
  * Đảm bảo rằng dữ liệu danh mục đầy đủ và đúng định dạng, bao gồm tên, mô tả,
  * các trường dữ liệu đặc thù của danh mục và thông tin người tạo.
  * @type {z.ZodObject}
  */
-export const CategorySchema = z.object({
+export const CategoryValidationSchema = z.object({
   id: z.string()
     .refine(isValidObjectIdAllowEmpty, "Invalid category ID format")
     .optional(),
@@ -143,11 +143,74 @@ export const CategorySchema = z.object({
     .optional(),
 });
 
-export const CategoriesSchema = z.object([
-  CategorySchema
+/**
+ * Lược đồ xác thực cho danh mục sản phẩm.
+ * 
+ * @constant {z.ZodObject} CategoriesValidationSchema
+ * @description Lược đồ này sử dụng `z.object` để xác thực một mảng chứa các đối tượng tuân theo `CategoryValidationSchema`.
+ */
+export const CategoriesValidationSchema = z.object([
+  CategoryValidationSchema
 ])
 
+/**
+ * Xác thực phân trang cho sản phẩm.
+ * 
+ * @constant
+ * @type {z.ZodObject}
+ * @property {number} page - Số trang, phải là số nguyên dương, mặc định là 1.
+ * @property {number} limit - Số lượng mục trên mỗi trang, phải là số nguyên dương, mặc định là 10.
+ */
 export const PaginationValidation = z.object({
   page: z.number().int().positive().default(1),
   limit: z.number().int().positive().default(10),
 });
+
+
+/**
+ * Helper to validate field type based on category definition
+ * @param {*} value - Field value to validate
+ * @param {string} expectedType - Expected type from category definition
+ * @returns {string|null} Error message or null if valid
+ */
+export const validateFieldType = (value, expectedType) => {
+  switch (expectedType) {
+    case 'String':
+      if (typeof value !== 'string') {
+        return `Trường này phải là chuỗi, nhưng nhận được ${typeof value}`;
+      }
+      break;
+    case 'Number':
+      if (typeof value !== 'number' || isNaN(value)) {
+        return `Trường này phải là số, nhưng nhận được ${typeof value}`;
+      }
+      break;
+    case 'Boolean':
+      if (typeof value !== 'boolean') {
+        return `Trường này phải là logic (true/false), nhưng nhận được ${typeof value}`;
+      }
+      break;
+    case 'Date':
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) {
+          throw new Error();
+        }
+      } catch {
+        return `Trường này phải là ngày hợp lệ`;
+      }
+      break;
+    case 'ObjectId':
+      if (!isValidMongoId(value)) {
+        return `Trường này phải là ObjectId hợp lệ`;
+      }
+      break;
+    case 'Array':
+      if (!Array.isArray(value)) {
+        return `Trường này phải là mảng, nhưng nhận được ${typeof value}`;
+      }
+      break;
+    // Mixed type allows any value
+  }
+  return null;
+};

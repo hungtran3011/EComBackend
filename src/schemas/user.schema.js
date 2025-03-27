@@ -39,10 +39,16 @@ const User = mongoose.Schema({
   },
   role: { type: String, required: true, enum: ['customer', 'admin', 'anon'], default: 'anon' },
   isRegistered: { type: Boolean, default: false },
-  refreshToken: { type: String, required: false},
 }, {timestamps: true}) 
 
 const UserModel = mongoose.model("User", User);
 
-export {UserModel as User};
+const UserImageSchema = mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  imageUrl: { type: String, required: true },
+}, { timestamps: true });
+
+const UserImageModel = mongoose.model("UserImage", UserImageSchema);
+
+export {UserModel as User, UserImageModel as UserImage};
 

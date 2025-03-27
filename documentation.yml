@@ -1,0 +1,56 @@
+# Documentation.js configuration for your codebase
+
+# Project information
+name: "Ecom API Documentation"
+version: "1.0.0"
+
+# Files to process
+source:
+  include:
+    - "**/*.js"
+    - "**/*.jsx"
+    - "**/*.ts"
+    - "**/*.tsx"
+  exclude:
+    - "node_modules/**"
+    - "dist/**"
+    - "build/**"
+    - "**/*.test.js"
+    - "**/*.spec.js"
+
+# # Output configuration
+# output:
+#   html:
+#     path: "./docs"
+#     theme: "default"
+#   markdown:
+#     path: "./docs/markdown"
+#     toc: true
+
+# Documentation structure
+toc:
+  - name: Introduction
+    description: Overview of the application
+  
+  - name: API
+    description: API endpoints and usage
+  
+  - name: Models
+    description: Data models and schemas
+  
+  - name: Controllers
+    description: Controller functions
+  
+  - name: Services
+    description: Service layer implementations
+  
+  - name: Utils
+    description: Utility functions and helpers
+
+# Documentation options
+options:
+  inferPrivate: "^_"
+  access: ["public", "protected"]
+  shallow: false
+  documentExported: true
+  markdownTocMaxDepth: 3

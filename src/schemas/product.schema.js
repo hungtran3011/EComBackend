@@ -70,6 +70,19 @@ const CategoryModel = mongoose.model(
 );
 
 /**
+ * @name ProductFieldValueSchema
+ * @author hungtran3011
+ * @description Schema lưu trữ giá trị của trường dữ liệu tùy chỉnh trong sản phẩm
+ * @type {mongoose.Schema}
+ * @property {String} name - Tên của trường dữ liệu, bắt buộc phải có
+ * @property {mongoose.Schema.Types.Mixed} value - Giá trị của trường
+ */
+export const ProductFieldValueSchema = mongoose.Schema({
+  name: { type: String, required: true },
+  value: { type: mongoose.Schema.Types.Mixed, required: true },
+});
+
+/**
  * @name ProductSchema
  * @author hungtran3011
  * @description Định nghĩa cấu trúc của một sản phẩm trong hệ thống
@@ -78,7 +91,7 @@ const CategoryModel = mongoose.model(
  * @property {String} description - Mô tả chi tiết về sản phẩm, không bắt buộc
  * @property {Number} price - Giá sản phẩm, bắt buộc phải có
  * @property {mongoose.Schema.Types.ObjectId} category - Tham chiếu đến danh mục chứa sản phẩm, bắt buộc phải có
- * @property {Array<FieldDefinitionSchema>} fields - Danh sách các trường dữ liệu tùy chỉnh của sản phẩm
+ * @property {Array<ProductFieldValueSchema>} fieldValues - Danh sách các trường dữ liệu tùy chỉnh của sản phẩm
  * @property {mongoose.Schema.Types.ObjectId} createdBy - Tham chiếu đến người tạo sản phẩm
  * @property {Date} createdAt - Thời điểm tạo sản phẩm, mặc định là thời điểm hiện tại
  * @property {Date} updatedAt - Thời điểm cập nhật sản phẩm gần nhất, mặc định là thời điểm hiện tại
@@ -92,9 +105,9 @@ export const ProductSchema = mongoose.Schema({
     ref: 'Category', 
     required: true 
   },
-  fields: [FieldDefinitionSchema],
+  fieldValues: [ProductFieldValueSchema], // Replace fields with fieldValues
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-}, {timestamp: true})
+}, {timestamps: true}) // Fix typo: timestamp -> timestamps
 
 /**
  * @name ProductModel
