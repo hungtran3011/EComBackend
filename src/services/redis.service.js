@@ -155,7 +155,7 @@ const set = async (key, value, expiry = null) => {
     
     return await client.set(key, stringValue);
   } catch (error) {
-    console.error(`Lỗi khi lưu khóa ${key}:`, error);
+    console.error("Lỗi khi lưu khóa %s", key, error);
     throw error;
   }
 };
@@ -184,7 +184,7 @@ const get = async (key, parse = false) => {
     
     return value;
   } catch (error) {
-    console.error(`Lỗi khi lấy khóa ${key}:`, error);
+    console.error(`Lỗi khi lấy khóa %s:`, key, error);
     throw error;
   }
 };
@@ -201,7 +201,7 @@ const del = async (...keys) => {
 
     return await client.del(keys);
   } catch (error) {
-    console.error(`Lỗi khi xóa khóa ${keys.join(', ')}:`, error);
+    console.error("Lỗi khi xóa khóa %s:", keys.join(", "), error);
     throw error;
   }
 };
@@ -219,7 +219,7 @@ const exists = async (key) => {
     const result = await client.exists(key);
     return result === 1;
   } catch (error) {
-    console.error(`Lỗi khi kiểm tra tồn tại khóa ${key}:`, error);
+    console.error(`Lỗi khi kiểm tra tồn tại khóa %s:`, key, error);
     throw error;
   }
 };
@@ -238,7 +238,7 @@ const expire = async (key, seconds) => {
     const result = await client.expire(key, seconds);
     return result === 1;
   } catch (error) {
-    console.error(`Lỗi khi thiết lập hết hạn khóa ${key}:`, error);
+    console.error(`Lỗi khi thiết lập hết hạn khóa %s:`, key, error);
     throw error;
   }
 };
@@ -255,7 +255,7 @@ const incr = async (key) => {
 
     return await client.incr(key);
   } catch (error) {
-    console.error(`Lỗi khi tăng giá trị khóa ${key}:`, error);
+    console.error(`Lỗi khi tăng giá trị khóa %s:`, key, error);
     throw error;
   }
 };
@@ -275,7 +275,7 @@ const hSet = async (key, field, value) => {
     const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
     return await client.hSet(key, field, stringValue);
   } catch (error) {
-    console.error(`Lỗi khi thiết lập trường ${field} trong hash ${key}:`, error);
+    console.error(`Lỗi khi thiết lập trường %s trong hash %s:`, field, key, error);
     throw error;
   }
 };
@@ -304,7 +304,7 @@ const hGet = async (key, field, parse = false) => {
     
     return value;
   } catch (error) {
-    console.error(`Lỗi khi lấy trường ${field} từ hash ${key}:`, error);
+    console.error(`Lỗi khi lấy trường %s từ hash %s:`, field, key, error);
     throw error;
   }
 };
@@ -351,7 +351,7 @@ const hGetAll = async (key, parseValues = false) => {
     
     return result || {};
   } catch (error) {
-    console.error(`Lỗi khi lấy tất cả từ hash ${key}:`, error);
+    console.error(`Lỗi khi lấy tất cả từ hash %s:`, key, error);
     throw error;
   }
 };
@@ -369,7 +369,7 @@ const hDel = async (key, ...fields) => {
 
     return await client.hDel(key, ...fields);
   } catch (error) {
-    console.error(`Lỗi khi xóa field từ hash ${key}:`, error);
+    console.error(`Lỗi khi xóa field từ hash %s:`, key, error);
     throw error;
   }
 };

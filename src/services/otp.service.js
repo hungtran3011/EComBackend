@@ -3,6 +3,10 @@ import { User } from '../schemas/user.schema.js';
 import redisService from './redis.service.js';
 import mailService from './mail.service.js';
 import { config } from 'dotenv';
+import {
+  OtpEmailValidationSchema,
+  OtpPhoneValidationSchema
+} from '../validators/otp.validator.js';
 
 config();
 
@@ -59,17 +63,17 @@ const saveOTP = async (userId, purpose) => {
   if (!userId) {
     throw new Error('ID người dùng là bắt buộc');
   }
-  
+
   if (!purpose) {
     throw new Error('Mục đích sử dụng OTP là bắt buộc');
   }
-  
+
   // Tạo khóa Redis cho OTP
   const redisKey = getOTPRedisKey(userId, purpose);
-  
+
   // Tạo mã OTP mới
   const otp = generateOTP();
-  
+
   try {
     // Lưu OTP vào Redis với TTL
     await redisService.set(redisKey, otp, OTP_EXPIRY_SECONDS);
@@ -92,22 +96,22 @@ const verifyOTP = async (userId, otp, purpose) => {
   if (!userId || !otp || !purpose) {
     return false;
   }
-  
+
   // Tạo khóa Redis cho OTP
   const redisKey = getOTPRedisKey(userId, purpose);
-  
+
   try {
     // Lấy OTP từ Redis
     const storedOTP = await redisService.get(redisKey);
-    
+
     // Kiểm tra OTP có tồn tại và khớp không
     if (!storedOTP || storedOTP !== otp) {
       return false;
     }
-    
+
     // Xóa OTP sau khi xác minh thành công để tránh sử dụng lại
     await redisService.del(redisKey);
-    
+
     return true;
   } catch (error) {
     console.error(`Lỗi khi xác minh OTP: ${error.message}`);
@@ -145,7 +149,7 @@ const sendOTPByEmail = async (email, otp, purpose) => {
 const sendOTPBySMS = async (phoneNumber, otp, purpose) => {
   // TODO: Tích hợp với nhà cung cấp SMS thực tế
   console.log(`[DEBUG] Gửi OTP ${otp} đến số điện thoại ${phoneNumber} cho mục đích ${purpose}`);
-  
+
   // Trả về true để giả lập thành công trong môi trường phát triển
   return true;
 };
@@ -158,34 +162,42 @@ const sendOTPBySMS = async (phoneNumber, otp, purpose) => {
  */
 const sendLoginOTP = async (credentials) => {
   const { email, phoneNumber } = credentials;
-  
+
   if (!email && !phoneNumber) {
     throw new Error('Email hoặc số điện thoại là bắt buộc');
   }
-  
-  // Tìm người dùng dựa trên email hoặc số điện thoại
-  const user = await User.findOne({
-    $or: [
-      { email: email || '' },
-      { phoneNumber: phoneNumber || '' }
-    ],
-    isRegistered: true
-  });
-  
-  if (!user) {
-    throw new Error('Không tìm thấy người dùng');
+  try {
+    const validEmail = OtpEmailValidationSchema.parse(email);
+    const validPhone = OtpPhoneValidationSchema.parse(phoneNumber);
+    // Tìm người dùng dựa trên email hoặc số điện thoại
+    const user = await User.findOne({
+      $or: [
+        { email: validEmail || '' },
+        { phoneNumber: validPhone || '' }
+      ],
+      isRegistered: true
+    });
+
+
+    if (!user) {
+      throw new Error('Không tìm thấy người dùng');
+    }
+
+    // Tạo và lưu mã OTP
+    const otp = await saveOTP(user._id.toString(), 'login');
+
+    // Gửi OTP qua email hoặc SMS tùy thuộc vào thông tin được cung cấp
+    if (email && user.email) {
+      await sendOTPByEmail(user.email, otp, 'login');
+    } else if (phoneNumber && user.phoneNumber) {
+      await sendOTPBySMS(user.phoneNumber, otp, 'login');
+    } else {
+      throw new Error('Không có phương thức liên hệ phù hợp');
+    }
   }
-  
-  // Tạo và lưu mã OTP
-  const otp = await saveOTP(user._id.toString(), 'login');
-  
-  // Gửi OTP qua email hoặc SMS tùy thuộc vào thông tin được cung cấp
-  if (email && user.email) {
-    await sendOTPByEmail(user.email, otp, 'login');
-  } else if (phoneNumber && user.phoneNumber) {
-    await sendOTPBySMS(user.phoneNumber, otp, 'login');
-  } else {
-    throw new Error('Không có phương thức liên hệ phù hợp');
+  catch (error) {
+    console.error(`Lỗi khi gửi mã OTP đăng nhập: ${error.message}`);
+    throw new Error('Không thể gửi mã OTP đăng nhập');
   }
 };
 
@@ -199,24 +211,24 @@ const sendLoginOTP = async (credentials) => {
  */
 const checkRateLimit = async (identifier, maxAttempts = 3, windowSeconds = 600) => {
   const key = getRateLimitKey(identifier);
-  
+
   try {
     // Lấy số lần yêu cầu hiện tại
     const attempts = await redisService.get(key) || 0;
-    
+
     // Nếu vượt quá giới hạn
     if (parseInt(attempts) >= maxAttempts) {
       return false;
     }
-    
+
     // Tăng số lần yêu cầu
     await redisService.incr(key);
-    
+
     // Đặt thời gian sống nếu là lần đầu tiên
     if (attempts === 0) {
       await redisService.expire(key, windowSeconds);
     }
-    
+
     return true;
   } catch (error) {
     console.error(`Lỗi khi kiểm tra giới hạn yêu cầu OTP: ${error.message}`);
@@ -235,18 +247,26 @@ const sendPasswordResetOTP = async (email) => {
   if (!email) {
     throw new Error('Email là bắt buộc');
   }
-  
-  // Tìm người dùng
-  const user = await User.findOne({ email, isRegistered: true });
-  if (!user) {
-    throw new Error('Không tìm thấy người dùng với email này');
+
+  try {
+    const validEmail = OtpEmailValidationSchema.parse(email);
+
+    // Tìm người dùng
+    const user = await User.findOne({ email: validEmail, isRegistered: true });
+    if (!user) {
+      throw new Error('Không tìm thấy người dùng với email này');
+    }
+
+    // Tạo và lưu mã OTP
+    const otp = await saveOTP(user._id.toString(), 'reset_password');
+
+    // Gửi OTP qua email
+    await sendOTPByEmail(email, otp, 'reset_password');
   }
-  
-  // Tạo và lưu mã OTP
-  const otp = await saveOTP(user._id.toString(), 'reset_password');
-  
-  // Gửi OTP qua email
-  await sendOTPByEmail(email, otp, 'reset_password');
+  catch (error) {
+    console.error(`Lỗi khi gửi mã OTP đặt lại mật khẩu: ${error.message}`);
+    throw new Error('Không thể gửi mã OTP đặt lại mật khẩu');
+  }
 };
 
 /**
@@ -263,22 +283,22 @@ const resetPassword = async (email, otp, newPassword) => {
   if (!user) {
     throw new Error('Không tìm thấy người dùng');
   }
-  
+
   // Xác minh OTP
   const isValidOTP = await verifyOTP(user._id.toString(), otp, 'reset_password');
   if (!isValidOTP) {
     return false;
   }
-  
+
   try {
     // Mã hóa mật khẩu mới
     const bcrypt = await import('bcrypt');
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
+
     // Cập nhật mật khẩu
     user.password = hashedPassword;
     await user.save();
-    
+
     return true;
   } catch (error) {
     console.error(`Lỗi khi đặt lại mật khẩu: ${error.message}`);

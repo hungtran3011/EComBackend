@@ -88,4 +88,20 @@ router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
   })
 })
 
+/**
+ * GET /auth/csrf-token
+ * @summary Get a new CSRF token
+ * @tags Authentication
+ * @description Route to get a new CSRF token
+ * @response 200 - Success response with CSRF token
+ * @responseContent {object} 200.application/json
+ * @responseExample {json} 200 - Example response:
+ *   {
+ *     "csrfToken": "example-csrf-token"
+ *   }
+ */
+router.get("/csrf-token", (req, res) => {
+  res.json({ csrfToken: req.cookies['csrf-token'] });
+});
+
 export {router as AuthRouter}

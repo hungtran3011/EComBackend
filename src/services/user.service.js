@@ -16,11 +16,16 @@ const findUserByEmailOrPhone = async (email, phoneNumber) => {
   }
 
   const query = { isRegistered: true };
+
+  const { validEmail, validPhone } = UserValidationSchema.parse({ 
+    email: email, 
+    phoneNumber: phoneNumber
+  });
   
   if (email) {
-    query.email = email;
+    query.email = validEmail;
   } else if (phoneNumber) {
-    query.phoneNumber = phoneNumber;
+    query.phoneNumber = validPhone;
   }
   
   return await User.findOne(query);

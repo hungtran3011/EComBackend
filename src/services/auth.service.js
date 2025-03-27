@@ -3,12 +3,13 @@ import bcrypt from "bcrypt";
 import tokenService from "./token.service.js";
 import { UserService } from "./user.service.js";
 import OTPService from "./otp.service.js";
+import { OtpPhoneNumberValidationSchema, OtpEmailValidationSchema } from "../validators/otp.validator.js";
 
 // Cấu hình cookie
 const COOKIE_CONFIG = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  sameSite: 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 ngày
 };
 
@@ -215,50 +216,62 @@ const handleLogout = async (userId, accessToken, refreshToken) => {
  * @returns {Promise<object>} Access token và thông tin admin
  */
 const adminSignIn = async (credentials, headers) => {
-  const { email, password, adminKey } = credentials;
+  try {
+    const { email, password, adminKey } = credentials;
 
-  if (adminKey !== process.env.ADMIN_SECRET_KEY) {
-    throw { status: 401, message: "Invalid credentials" };
+    if (adminKey !== process.env.ADMIN_SECRET_KEY) {
+      throw { status: 401, message: "Invalid credentials" };
+    }
+
+    const clientIP = headers["x-forwarded-for"] || headers["socket.remoteAddress"];
+    const allowedAdminIPs = process.env.ADMIN_ALLOWED_IPS?.split(",") || [];
+
+    if (allowedAdminIPs.length > 0 && !allowedAdminIPs.includes(clientIP)) {
+      throw { status: 403, message: "Access denied from this location" };
+    }
+    
+    const validEmail = OtpEmailValidationSchema.parse(email);
+    const admin = await User.findOne({ validEmail, role: "admin" });
+    if (!admin) {
+      throw { status: 401, message: "Invalid credentials" };
+    }
+
+    const isValidPassword = await bcrypt.compare(password, admin.password);
+    if (!isValidPassword) {
+      throw { status: 401, message: "Invalid credentials" };
+    }
+
+    // Tạo token với flag isAdmin
+    const adminAccessToken = tokenService.generateAccessToken(admin, true);
+    const adminRefreshToken = tokenService.generateRefreshToken(admin, true);
+
+    // Lưu refresh token vào Redis
+    await tokenService.saveRefreshToken(admin._id.toString(), adminRefreshToken, true);
+
+    return { 
+      accessToken: adminAccessToken, 
+      refreshToken: adminRefreshToken,
+      cookieConfig: {
+        ...COOKIE_CONFIG,
+        maxAge: 4 * 60 * 60 * 1000 // 4 giờ cho admin
+      },
+      user: {
+        id: admin._id,
+        name: admin.name,
+        email: admin.email,
+        role: admin.role
+      } 
+    };
+  } catch (error) {
+    if (error.status) {
+      throw error; // Re-throw errors that already have status
+    } else if (error.name === 'ZodError') {
+      throw { status: 400, message: "Invalid email format" };
+    } else {
+      console.error("Admin sign-in error:", error);
+      throw { status: 500, message: "Internal server error during authentication" };
+    }
   }
-
-  const clientIP = headers["x-forwarded-for"] || headers["socket.remoteAddress"];
-  const allowedAdminIPs = process.env.ADMIN_ALLOWED_IPS?.split(",") || [];
-
-  if (allowedAdminIPs.length > 0 && !allowedAdminIPs.includes(clientIP)) {
-    throw { status: 403, message: "Access denied from this location" };
-  }
-
-  const admin = await User.findOne({ email, role: "admin" });
-  if (!admin) {
-    throw { status: 401, message: "Invalid credentials" };
-  }
-
-  const isValidPassword = await bcrypt.compare(password, admin.password);
-  if (!isValidPassword) {
-    throw { status: 401, message: "Invalid credentials" };
-  }
-
-  // Tạo token với flag isAdmin
-  const adminAccessToken = tokenService.generateAccessToken(admin, true);
-  const adminRefreshToken = tokenService.generateRefreshToken(admin, true);
-
-  // Lưu refresh token vào Redis
-  await tokenService.saveRefreshToken(admin._id.toString(), adminRefreshToken, true);
-
-  return { 
-    accessToken: adminAccessToken, 
-    refreshToken: adminRefreshToken,
-    cookieConfig: {
-      ...COOKIE_CONFIG,
-      maxAge: 4 * 60 * 60 * 1000 // 4 giờ cho admin
-    },
-    user: {
-      id: admin._id,
-      name: admin.name,
-      email: admin.email,
-      role: admin.role
-    } 
-  };
 };
 
 export default {
