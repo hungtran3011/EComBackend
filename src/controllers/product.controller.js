@@ -1,13 +1,15 @@
-import mongoose from "mongoose";
-import { Product, Category } from "../schemas/product.schema.js";
-import { 
-  ProductSchema, 
-  ProductListSchema, 
-  CategorySchema, 
-  isValidMongoId,
-  PaginationValidation,
-  CategoriesSchema,
-} from "../validators/product.validator.js";
+import {
+  getAllProductsService,
+  getProductByIdService,
+  createProductService,
+  updateProductService,
+  deleteProductService,
+  getAllCategoriesService,
+  getCategoryByIdService,
+  createCategoryService,
+  updateCategoryService,
+  deleteCategoryService,
+} from "../services/product.service.js";
 
 /**
  * @swagger
@@ -35,21 +37,13 @@ import {
 
 const getAllProducts = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = PaginationValidation.parse(req.query);
-    const startIndex = (page - 1) * limit;
-    const total = await Product.countDocuments();
-    const products = await Product.find().skip(startIndex).limit(limit);
-
-    res.status(200).json(ProductListSchema.parse({
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total,
-      products,
-    }));
+    const { page = 1, limit = 10 } = req.query;
+    const result = await getAllProductsService(parseInt(page), parseInt(limit));
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}
+};
 
 /**
  * @swagger
@@ -84,22 +78,12 @@ const getAllProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!id) {
-      return res.status(400).json({ message: "Product ID cannot be empty" });
-    }
-    if (!isValidMongoId(id)) {
-      return res.status(400).json({ message: "Invalid product ID" });
-    }
-    const product = await Product.findById(id);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-    res.status(200).json(ProductSchema.parse(product))
+    const result = await getProductByIdService(id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  catch (error) {
-    res.status(500).json({ message: error.message })
-  }
-}
+};
 
 /**
  * @swagger
@@ -154,31 +138,17 @@ const getProductById = async (req, res) => {
  */
 const createProduct = async (req, res) => {
   try {
-    // Xem lại phần user.middleware.js, thông tin user đã được thêm vào request
     const user = req.user;
-    if (!user) {
-      return res.status(401).json({ message: "Không có quyền truy cập, vui lòng đăng nhập" });
+    if (!user || !user.isAdmin) {
+      return res.status(401).json({ message: "Admin only" });
     }
-
-    // Kiểm tra user có quyền admin hay không
-    if (!user.isAdmin) {
-      return res.status(401).json({ message: "Chỉ quản trị viên mới có quyền thêm sản phẩm" });
-    }
-    const { name, description, price, category } = req.body;
-    const newProduct = ProductSchema.parse({
-      name: name,
-      description: description,
-      price: price,
-      category: category,
-      createdBy: user._id,
-    })
-    const addedProduct = Product(newProduct);
-    await addedProduct.save()
-    res.status(201).json(ProductSchema.parse(addedProduct.toObject()));
+    const productData = { ...req.body, createdBy: user._id };
+    const result = await createProductService(productData);
+    res.status(201).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}
+};
 
 /**
  * @swagger
@@ -244,50 +214,18 @@ const createProduct = async (req, res) => {
  * @param {*} res 
  */
 const updateProduct = async (req, res) => {
-  const {id} = req.params;
-  const {userId, role} = req.user;
-  
-  // Validation checks
-  if (!id) 
-    return res.status(400).json({ message: "ID sản phẩm không được để trống" });
-  if (!userId)
-    return res.status(401).json({ message: "No permission"})
-  if (role !== 'admin')
-    return res.status(401).json({message: "Admin only"})
-  if (!isValidMongoId(id))
-    return res.status(400).json({ message: "ID sản phẩm không hợp lệ" });
-    
   try {
-    // Create an object with only the fields that are present in the request
-    const updateData = {};
-    const { name, description, price, category } = req.body;
-    
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (price !== undefined) updateData.price = price;
-    if (category !== undefined) updateData.category = category;
-    
-    // Validate the update data using partial schema validation
-    const validatedData = ProductSchema.partial().parse(updateData);
-    
-    // Update only the provided fields and return the updated document
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id, 
-      { $set: validatedData }, 
-      { new: true }
-    );
-    
-    if (!updatedProduct) 
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
-    
-    // Parse the product through the schema to ensure consistent response format
-    // and remove any unwanted MongoDB fields like __v
-    return res.status(200).json(ProductSchema.parse(updatedProduct.toObject()));
+    const { id } = req.params;
+    const { user } = req;
+    if (!user || user.role !== "admin") {
+      return res.status(401).json({ message: "Admin only" });
+    }
+    const result = await updateProductService(id, req.body);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-}
+};
 
 /**
  * @swagger
@@ -330,27 +268,18 @@ const updateProduct = async (req, res) => {
  * @param {*} res 
  */
 const deleteProduct = async (req, res) => {
-  const {id} = req.params
-  const {userId, role} = req.user;
-  if (!id) 
-    return res.status(400).json({ message: "ID sản phẩm không được để trống" });
-  if (!userId)
-    return res.status(401).json({ message: "No permission"})
-  if (role !== 'admin')
-    return res.status(401).json({message: "Admin only"})
-  if (!isValidMongoId(id))
-    return res.status(400).json({ message: "ID sản phẩm không hợp lệ" });
   try {
-    const deletedProduct = await Product.findByIdAndDelete(id);
-    if (!deletedProduct) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+    const { id } = req.params;
+    const { user } = req;
+    if (!user || user.role !== "admin") {
+      return res.status(401).json({ message: "Admin only" });
     }
-    return res.status(200).json({ message: "Sản phẩm đã được xóa thành công" });
+    const result = await deleteProductService(id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-}
+};
 
 /**
  * @swagger
@@ -384,12 +313,12 @@ const deleteProduct = async (req, res) => {
  */
 const getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find();
-    res.status(200).json(CategoriesSchema.parse(categories));
+    const result = await getAllCategoriesService();
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}
+};
 
 /**
  * @swagger
@@ -431,22 +360,14 @@ const getAllCategories = async (req, res) => {
  * @param {*} res 
  */
 const getCategoryById = async (req, res) => {
-  const {id} = req.params
-  if (!id) 
-    return res.status(400).json({ message: "ID danh mục không được để trống" });
-  if (!isValidMongoId(id))
-    return res.status(400).json({ message: "ID danh mục không hợp lệ" });
   try {
-    const category = await Category.findById(id);
-    if (!category) {
-      return res.status(404).json({ message: "Không tìm thấy danh mục" });
-    }
-    res.status(200).json(CategorySchema.parse(category));
+    const { id } = req.params;
+    const result = await getCategoryByIdService(id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  catch (error) {
-    return res.status(500).json({message: error.message})
-  }
-}
+};
 
 /**
  * @swagger
@@ -517,26 +438,18 @@ const getCategoryById = async (req, res) => {
  * @param {*} res 
  */
 const createCategory = async (req, res) => {
-  const {name, description, fields} = req.body
-  const {userId} = req.user;
-  if (!userId)
-    return res.status(401).json({ message: "No permission"})
-  if (!name) 
-    return res.status(400).json({ message: "Tên danh mục không được để trống" });
   try {
-    const newCategory = CategorySchema.parse({
-      name: name,
-      description: description,
-      fields: fields,
-      createdBy: userId,
-    })
-    const addedCategory = Category(newCategory);
-    await addedCategory.save()
-    res.status(201).json(CategorySchema.parse(addedCategory.toObject()));
+    const { user } = req;
+    if (!user) {
+      return res.status(401).json({ message: "No permission" });
+    }
+    const categoryData = { ...req.body, createdBy: user._id };
+    const result = await createCategoryService(categoryData);
+    res.status(201).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-}
+};
 
 /**
  * @swagger
@@ -612,41 +525,18 @@ const createCategory = async (req, res) => {
  * @param {*} res 
  */
 const updateCategory = async (req, res) => { 
-  const {id} = req.params
-  const {userId} = req.user;
-  
-  if (!id) 
-    return res.status(400).json({ message: "ID danh mục không được để trống" });
-  if (!userId)
-    return res.status(401).json({ message: "No permission"})
-  if (!isValidMongoId(id))
-    return res.status(400).json({ message: "ID danh mục không hợp lệ" });
-    
   try {
-    const {name, description, fields} = req.body;
-    
-    // Validate only the fields that are provided
-    const validatedData = {};
-    if (name !== undefined) validatedData.name = CategorySchema.shape.name.parse(name);
-    if (description !== undefined) validatedData.description = CategorySchema.shape.description.parse(description);
-    if (fields !== undefined) validatedData.fields = CategorySchema.shape.fields.parse(fields);
-    
-    // Use $set to only update the provided fields
-    const result = await Category.findByIdAndUpdate(
-      id, 
-      { $set: validatedData }, 
-      { new: true }
-    );
-    
-    if (!result) return res.status(404).json({ message: "Không tìm thấy danh mục" });
-    
-    // Return the actual updated document from the database
-    return res.status(200).json(CategoriesSchema.parse(result.toObject()));
+    const { id } = req.params;
+    const { user } = req;
+    if (!user) {
+      return res.status(401).json({ message: "No permission" });
+    }
+    const result = await updateCategoryService(id, req.body);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-}
+};
 
 /**
  * @swagger
@@ -689,25 +579,18 @@ const updateCategory = async (req, res) => {
  * @param {*} res 
  */
 const deleteCategory = async (req, res) => {
-  const {id} = req.params
-  const {userId} = req.user;
-  if (!id) 
-    return res.status(400).json({ message: "ID danh mục không được để trống" });
-  if (!userId)
-    return res.status(401).json({ message: "No permission"})
-  if (!isValidMongoId(id))
-    return res.status(400).json({ message: "ID danh mục không hợp lệ" });
   try {
-    const deletedCategory = await Category.findByIdAndDelete(id);
-    if (!deletedCategory) {
-      return res.status(404).json({ message: "Không tìm thấy danh mục" });
+    const { id } = req.params;
+    const { user } = req;
+    if (!user) {
+      return res.status(401).json({ message: "No permission" });
     }
-    return res.status(200).json({ message: "Danh mục đã được xóa thành công" });
+    const result = await deleteCategoryService(id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-  catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-}
+};
 
 const ProductControllers = {
   getAllProducts,

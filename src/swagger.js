@@ -61,7 +61,7 @@ const swaggerSpec = swaggerJSDoc(options);
 
 /**
  * Sets up Swagger documentation for the Express application
- * @param {import('express').Application} app - Express application
+ * @param {express.Application} app - Express application
  * @param {number} port - Server port number
  */
 const swaggerDocs = (app, port) => {

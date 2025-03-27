@@ -1,7 +1,9 @@
-import { User } from "../schemas/user.schema.js";
-import bcrypt from "bcrypt";
+import AuthService from "../services/auth.service.js";
 import jwt from "jsonwebtoken";
-
+import otpService from '../services/otp.service.js';
+import {UserService} from '../services/user.service.js';
+import authService from '../services/auth.service.js';
+import mailService from '../services/mail.service.js';
 
 /**
  * @swagger
@@ -97,47 +99,25 @@ import jwt from "jsonwebtoken";
  */
 const registerUser = async (req, res) => {
   try {
-    const { name, email, phoneNumber, password, address } = req.body;
-    const existedUser = await User.findOne({
-      $or: [
-        { email },
-        { phoneNumber }
-      ],
-    });
-    if (existedUser.isRegistered) {
-      return res.status(400).json({ message: "User already exists" });
+    const { user, accessToken, refreshToken, cookieConfig } = await AuthService.registerUser(req.body);
+    
+    // Thiết lập refreshToken làm HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, cookieConfig);
+    
+    // Gửi email chào mừng (thêm điều này)
+    try {
+      await mailService.sendWelcomeEmail(user.email, user.name);
+    } catch (mailError) {
+      // Log lỗi nhưng không làm gián đoạn việc đăng ký
+      console.error('Error sending welcome email:', mailError);
     }
     
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Initialize with a valid refresh token string (even though it's not used yet)
-    // Using a simple string instead of an empty string to avoid validation errors
-    
-    // Create new user with valid role (customer instead of user)
-    const newUser = new User({
-      name,
-      email,
-      phoneNumber,
-      password: hashedPassword,
-      address,
-      isRegistered: true,
-      role: "customer",
-    });
-    
-    await newUser.save();
-    
-    // Convert to plain object and remove sensitive data
-    const userResponse = newUser.toObject();
-    delete userResponse.password;
-    delete userResponse.refreshToken;
-    
-    res.status(201).json(userResponse);
+    // Chỉ trả về accessToken và thông tin user
+    res.status(201).json({ user, accessToken });
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
   }
-  catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-}
+};
 
 /**
  * @swagger
@@ -230,69 +210,18 @@ const registerUser = async (req, res) => {
  */
 const signIn = async (req, res) => {
   try {
-    const { email, phoneNumber, password } = req.body;
-    const user = await User.findOne({
-      $or: [
-        { email },
-        { phoneNumber }
-      ],
-      isRegistered: true
-    });
+    // Nhận accessToken, refreshToken, và user từ service
+    const { accessToken, refreshToken, cookieConfig, user } = await AuthService.signIn(req.body);
     
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    // Thiết lập refreshToken làm HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, cookieConfig);
     
-    // Compare with password field (not hashedPassword)
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    
-    if (!isValidPassword) {
-      return res.status(401).json({ message: "Invalid password" });
-    }
-    
-    const accessToken = jwt.sign(
-      {
-        "id": user._id,
-        "role": user.role
-      },
-      process.env.ACCESS_TOKEN_SECRET,
-      {
-        expiresIn: "1h"
-      }
-    );
-    
-    const refreshToken = jwt.sign(
-      {
-        "id": user._id,
-        "role": user.role
-      },
-      process.env.REFRESH_TOKEN_SECRET,
-      {
-        expiresIn: "1d"
-      }
-    );
-    
-    // Update the user's refresh token in the database
-    user.refreshToken = refreshToken;
-    await user.save();
-    
-    res.status(200).json({ 
-      accessToken, 
-      refreshToken,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        address: user.address,
-        role: user.role
-      } 
-    });
+    // Chỉ trả về access token và thông tin người dùng
+    res.status(200).json({ accessToken, user });
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
   }
-  catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-}
+};
 
 /**
  * @swagger
@@ -342,38 +271,20 @@ const signIn = async (req, res) => {
  * @param {object} res - Express response object
  * @returns {void}
  */
-const handleRefreshToken = (req, res) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) {
-    res.sendStatus(401);
-  }
-  // Kiểm tra cấu trúc của refresh token
-  // gồm 3 phần cách nhau bởi dấu .
-  const parts = refreshToken.split('.');
-  if (parts.length !== 3) {
-    return res.status(403).json({ message: "Invalid refresh token format" });
-  }
-  
-  const base64UrlRegex = /^[A-Za-z0-9_-]*$/;
-  if (!parts.every(part => base64UrlRegex.test(part))) {
-    return res.status(403).json({ message: "Invalid refresh token format" });
-  }
-  jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-    if (err) {
-      return res.sendStatus(403);
+const handleRefreshToken = async (req, res) => {
+  try {
+    // Lấy refreshToken từ cookie thay vì từ body
+    const refreshToken = req.cookies.refreshToken;
+    
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token là bắt buộc" });
     }
-    const accessToken = jwt.sign(
-      {
-        "id": user.id,
-        "role": user.role
-      },
-      process.env.ACCESS_TOKEN_SECRET,
-      {
-        expiresIn: "1h"
-      }
-    );
+    
+    const { accessToken } = await AuthService.handleRefreshToken(refreshToken);
     res.status(200).json({ accessToken });
-  })
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
+  }
 }
 
 /**
@@ -410,38 +321,476 @@ const handleRefreshToken = (req, res) => {
  * @returns {void}
  */
 const handleLogout = async (req, res) => {
-  const { id } = req.params;
-  if (!id) {
-    return res.status(400).json({ message: "User ID is required" });
-  }
-  // Kiểm tra xem người dùng có tồn tại không
-  // Using async/await for better control flow
   try {
-    const user = await User.findById(id);
+    const userId = req.user && req.user.id;
+    const accessToken = req.token;
+    const refreshToken = req.cookies?.refreshToken;
     
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    await AuthService.handleLogout(userId, accessToken, refreshToken);
     
-    // Kiểm tra xem refresh token có tồn tại không
-    if (!user.refreshToken) {
-      return res.status(400).json({ message: "No refresh token found" });
-    }
+    // Xóa cookie refreshToken
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
     
-    // Only proceed with update if user exists and has refresh token
-    await User.findByIdAndUpdate(id, { refreshToken: null }, { new: true });
-    return res.status(200).json({ message: "Logout successfully" });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
+    res.status(200).json({ message: "Đăng xuất thành công" });
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
   }
 }
+
+/**
+ * @swagger
+ * /auth/admin/sign-in:
+ *   post:
+ *     summary: Đăng nhập với quyền quản trị viên
+ *     description: >
+ *       Điểm truy cập an toàn dành riêng cho quản trị viên. 
+ *       Yêu cầu xác thực đa lớp và chỉ cho phép từ địa chỉ IP được phê duyệt.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - adminKey
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *               adminKey:
+ *                 type: string
+ *                 description: Khóa bí mật mà chỉ quản trị viên biết
+ *     responses:
+ *       200:
+ *         description: Đăng nhập quản trị viên thành công
+ *       401:
+ *         description: Không được phép truy cập
+ *       403:
+ *         description: Bị cấm truy cập
+ */
+const adminSignIn = async (req, res) => {
+  try {
+    const { accessToken, refreshToken, cookieConfig, user } = await AuthService.adminSignIn(req.body, req.headers);
+    
+    // Thiết lập refreshToken làm HTTP-only cookie với thời gian ngắn hơn
+    res.cookie('adminRefreshToken', refreshToken, cookieConfig);
+    
+    // Chỉ trả về accessToken và thông tin admin
+    res.status(200).json({ accessToken, user });
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
+  }
+};
+
+/**
+ * @swagger
+ * /auth/send-password-reset-otp:
+ *   post:
+ *     summary: Gửi mã OTP để đặt lại mật khẩu
+ *     description: >
+ *       Quên mật khẩu? Đừng lo! Chúng tôi sẽ gửi mã OTP đến email của bạn để giúp đặt lại mật khẩu.
+ *       Mã OTP chỉ có hiệu lực trong 10 phút và chỉ có thể sử dụng một lần cho mục đích bảo mật.
+ *       Chúng tôi giới hạn số lần yêu cầu đặt lại mật khẩu để bảo vệ tài khoản của bạn.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email đã đăng ký của bạn để nhận mã OTP
+ *     responses:
+ *       200:
+ *         description: Mã OTP đã được gửi thành công hoặc thông báo nếu email tồn tại
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Thông báo về trạng thái gửi OTP
+ *                 expiresIn:
+ *                   type: number
+ *                   description: Thời gian hiệu lực của OTP tính bằng giây
+ *       400:
+ *         description: Yêu cầu không hợp lệ, thiếu email
+ *       429:
+ *         description: Quá nhiều yêu cầu trong một khoảng thời gian ngắn
+ *       500:
+ *         description: Lỗi máy chủ khi gửi OTP
+ */
+/**
+ * @name sendPasswordResetOTP
+ * @author hungtran3011
+ * @description Gửi mã OTP để đặt lại mật khẩu đến email người dùng
+ * @param {object} req - Express request object
+ * @param {object} req.body - Request body
+ * @param {string} req.body.email - Email người dùng cần đặt lại mật khẩu
+ * @param {object} res - Express response object
+ * @returns {Promise<void>} Promise không có giá trị trả về
+ * @throws {Error} Nếu không tìm thấy người dùng hoặc có lỗi khi gửi OTP
+ */
+const sendPasswordResetOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: "Email là bắt buộc" });
+    }
+    
+    // Kiểm tra rate limit
+    const withinLimit = await otpService.checkRateLimit(email, 2, 1800); // 2 lần trong 30 phút
+    if (!withinLimit) {
+      return res.status(429).json({ 
+        message: "Quá nhiều yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau."
+      });
+    }
+    
+    await otpService.sendPasswordResetOTP(email);
+    
+    res.status(200).json({
+      message: "Mã OTP đặt lại mật khẩu đã được gửi",
+      expiresIn: 600 // 10 phút
+    });
+  } catch (error) {
+    if (error.message === "Không tìm thấy người dùng với email này") {
+      // Lưu ý: Với vấn đề bảo mật, bạn có thể muốn trả về phản hồi thành công
+      // ngay cả khi người dùng không tồn tại để tránh việc liệt kê tài khoản
+      return res.status(200).json({ 
+        message: "Nếu email tồn tại, mã OTP sẽ được gửi"
+      });
+    }
+    
+    console.error(`Lỗi khi gửi OTP đặt lại mật khẩu: ${error.message}`);
+    res.status(500).json({ message: "Có lỗi xảy ra khi gửi mã OTP" });
+  }
+};
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Đặt lại mật khẩu bằng OTP
+ *     description: >
+ *       Sử dụng mã OTP đã nhận được để đặt lại mật khẩu cho tài khoản của bạn.
+ *       Mật khẩu mới phải có ít nhất 6 ký tự để đảm bảo an toàn cho tài khoản của bạn.
+ *       Sau khi đặt lại thành công, bạn có thể sử dụng mật khẩu mới để đăng nhập ngay lập tức.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *               - newPassword
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email đã đăng ký của bạn
+ *               otp:
+ *                 type: string
+ *                 description: Mã OTP đã nhận được qua email
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: Mật khẩu mới của bạn (ít nhất 6 ký tự)
+ *     responses:
+ *       200:
+ *         description: Mật khẩu đã được đặt lại thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Đặt lại mật khẩu thành công
+ *       400:
+ *         description: Yêu cầu không hợp lệ, thiếu thông tin hoặc mật khẩu không đạt yêu cầu
+ *       401:
+ *         description: Mã OTP không hợp lệ hoặc đã hết hạn
+ *       500:
+ *         description: Lỗi máy chủ khi đặt lại mật khẩu
+ */
+/**
+ * @name resetPassword
+ * @author hungtran3011
+ * @description Đặt lại mật khẩu người dùng sử dụng OTP xác thực
+ * @param {object} req - Express request object
+ * @param {object} req.body - Request body
+ * @param {string} req.body.email - Email của người dùng
+ * @param {string} req.body.otp - Mã OTP đã nhận được qua email
+ * @param {string} req.body.newPassword - Mật khẩu mới (ít nhất 6 ký tự)
+ * @param {object} res - Express response object
+ * @returns {Promise<void>} Promise không có giá trị trả về
+ * @throws {Error} Nếu OTP không hợp lệ hoặc có lỗi khi đặt lại mật khẩu
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ 
+        message: "Email, mã OTP và mật khẩu mới là bắt buộc" 
+      });
+    }
+    
+    // Kiểm tra mật khẩu hợp lệ
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Mật khẩu phải có ít nhất 6 ký tự"
+      });
+    }
+    
+    // Thực hiện đặt lại mật khẩu
+    const success = await otpService.resetPassword(email, otp, newPassword);
+    
+    if (!success) {
+      return res.status(400).json({ message: "Mã OTP không hợp lệ hoặc đã hết hạn" });
+    }
+    
+    res.status(200).json({ message: "Đặt lại mật khẩu thành công" });
+  } catch (error) {
+    console.error(`Lỗi đặt lại mật khẩu: ${error.message}`);
+    res.status(500).json({ message: "Có lỗi xảy ra khi đặt lại mật khẩu" });
+  }
+};
+
+/**
+ * @swagger
+ * /auth/send-otp:
+ *   post:
+ *     summary: Gửi mã OTP để đăng nhập
+ *     description: >
+ *       Gửi mã OTP đến email hoặc số điện thoại đã đăng ký của bạn để đăng nhập. 
+ *       Đây là lựa chọn an toàn khi bạn không muốn sử dụng mật khẩu hoặc đang sử dụng thiết bị không đáng tin cậy.
+ *       OTP có hiệu lực trong 10 phút và chỉ sử dụng được một lần.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email đã đăng ký của bạn
+ *               phoneNumber:
+ *                 type: string
+ *                 description: Hoặc số điện thoại đã đăng ký nếu bạn thích
+ *     responses:
+ *       200:
+ *         description: Mã OTP đã được gửi thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Thông báo gửi OTP thành công
+ *                 expiresIn:
+ *                   type: number
+ *                   description: Thời gian hiệu lực của OTP tính bằng giây
+ *       400:
+ *         description: Yêu cầu không hợp lệ, thiếu email hoặc số điện thoại
+ *       404:
+ *         description: Không tìm thấy tài khoản này
+ *       429:
+ *         description: Quá nhiều yêu cầu trong một khoảng thời gian ngắn
+ *       500:
+ *         description: Máy chủ đang gặp vấn đề khi gửi OTP
+ */
+/**
+ * @name sendLoginOTP
+ * @author hungtran3011
+ * @description Gửi mã OTP để đăng nhập vào tài khoản
+ * @param {object} req - Express request object
+ * @param {object} req.body - Request body
+ * @param {string} [req.body.email] - Email của người dùng
+ * @param {string} [req.body.phoneNumber] - Số điện thoại của người dùng
+ * @param {object} res - Express response object
+ * @returns {Promise<void>} Promise không có giá trị trả về
+ * @throws {Error} Nếu không tìm thấy người dùng hoặc có lỗi khi gửi OTP
+ */
+const sendLoginOTP = async (req, res) => {
+  try {
+    const { email, phoneNumber } = req.body;
+    
+    if (!email && !phoneNumber) {
+      return res.status(400).json({ message: "Email hoặc số điện thoại là bắt buộc" });
+    }
+    
+    const identifier = email || phoneNumber;
+    
+    // Kiểm tra rate limit
+    const withinLimit = await otpService.checkRateLimit(identifier);
+    if (!withinLimit) {
+      return res.status(429).json({ 
+        message: "Quá nhiều yêu cầu. Vui lòng thử lại sau 10 phút."
+      });
+    }
+    
+    await otpService.sendLoginOTP(req.body);
+    
+    res.status(200).json({
+      message: "Mã OTP đã được gửi thành công",
+      expiresIn: 600 // 10 phút
+    });
+  } catch (error) {
+    if (error.message === "Không tìm thấy người dùng") {
+      return res.status(404).json({ message: error.message });
+    }
+    
+    console.error(`Lỗi khi gửi OTP: ${error.message}`);
+    res.status(500).json({ message: "Có lỗi xảy ra khi gửi mã OTP" });
+  }
+};
+
+/**
+ * @swagger
+ * /auth/sign-in-otp:
+ *   post:
+ *     summary: Đăng nhập bằng OTP
+ *     description: >
+ *       Đăng nhập vào hệ thống bằng mã OTP đã được gửi đến email hoặc số điện thoại của bạn. 
+ *       Phương thức này giúp bạn đăng nhập mà không cần nhớ mật khẩu và tăng cường bảo mật.
+ *       OTP chỉ có hiệu lực trong 10 phút và không thể sử dụng lại sau khi đăng nhập thành công.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email đã đăng ký của bạn
+ *               phoneNumber:
+ *                 type: string
+ *                 description: Hoặc số điện thoại đã đăng ký nếu bạn thích
+ *               otp:
+ *                 type: string
+ *                 description: Mã OTP được gửi đến bạn
+ *     responses:
+ *       200:
+ *         description: Đăng nhập thành công! Chào mừng trở lại!
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   description: Token để truy cập hệ thống (có hiệu lực trong 1 giờ)
+ *                 user:
+ *                   type: object
+ *                   description: Thông tin người dùng đã đăng nhập
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: ID người dùng
+ *                     name:
+ *                       type: string
+ *                       description: Tên người dùng
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       description: Email người dùng
+ *                     phoneNumber:
+ *                       type: string
+ *                       description: Số điện thoại người dùng
+ *                     role:
+ *                       type: string
+ *                       enum: [customer, admin]
+ *                       description: Vai trò của người dùng
+ *       400:
+ *         description: Thiếu thông tin cần thiết
+ *       401:
+ *         description: OTP không hợp lệ hoặc đã hết hạn
+ *       404:
+ *         description: Không tìm thấy tài khoản này
+ *       500:
+ *         description: Máy chủ đang gặp vấn đề. Xin lỗi vì sự bất tiện này!
+ */
+/**
+ * @name signInWithOTP
+ * @author hungtran3011
+ * @description Đăng nhập người dùng bằng mã OTP thay vì mật khẩu
+ * @param {object} req - Express request object
+ * @param {object} req.body - Request body
+ * @param {string} [req.body.email] - Email của người dùng
+ * @param {string} [req.body.phoneNumber] - Số điện thoại của người dùng
+ * @param {string} req.body.otp - Mã OTP để xác thực
+ * @param {object} res - Express response object
+ * @returns {Promise<void>} Promise không có giá trị trả về
+ * @throws {Error} Nếu không tìm thấy người dùng, OTP không hợp lệ hoặc có lỗi khác
+ */
+const signInWithOTP = async (req, res) => {
+  try {
+    const { email, phoneNumber, otp } = req.body;
+    
+    if ((!email && !phoneNumber) || !otp) {
+      return res.status(400).json({ 
+        message: "Email/số điện thoại và mã OTP là bắt buộc" 
+      });
+    }
+    
+    // Tìm người dùng và xác nhận OTP
+    const { accessToken, refreshToken, cookieConfig, user } = await AuthService.signInWithOTP(req.body);
+    
+    // Thiết lập refreshToken làm HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, cookieConfig);
+    
+    // Chỉ trả về accessToken và thông tin người dùng
+    res.status(200).json({
+      accessToken,
+      user
+    });
+  } catch (error) {
+    console.error(`Lỗi đăng nhập với OTP: ${error.message}`);
+    res.status(error.status || 500).json({ message: error.message });
+  }
+};
 
 const AuthControllers = {
   registerUser,
   signIn,
+  sendLoginOTP,
+  signInWithOTP,
   handleRefreshToken,
-  handleLogout
-}
+  handleLogout,
+  adminSignIn,
+  sendPasswordResetOTP,
+  resetPassword
+};
 
-export default AuthControllers
+export default AuthControllers;
 

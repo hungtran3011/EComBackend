@@ -1,26 +1,20 @@
 import { Router } from "express";
-import ProductControllers from "../controllers/product.controller.js"
-import {userMiddleware} from "../middleware/user.middleware.js";
+import { userMiddleware } from "../middleware/user.middleware.js";
+import ProductControllers from "../controllers/product.controller.js";
 import { IPRateLimiter } from "../config/rate-limit.js";
+import { cacheMiddleware } from "../middleware/cache.middleware.js";
 
 const router = Router();
 
-router.route("/")
-  .get(IPRateLimiter, ProductControllers.getAllProducts)
-  .post(IPRateLimiter, userMiddleware, ProductControllers.createProduct);
+// Áp dụng caching 5 phút cho route lấy tất cả sản phẩm
+router.get("/", IPRateLimiter, cacheMiddleware(300), ProductControllers.getAllProducts);
 
-router.route("/:id")
-  .get(IPRateLimiter, ProductControllers.getProductById)
-  .put(IPRateLimiter, userMiddleware, ProductControllers.updateProduct)
-  .delete(IPRateLimiter, userMiddleware, ProductControllers.deleteProduct);
+// Áp dụng caching 10 phút cho route lấy chi tiết sản phẩm
+router.get("/:id", IPRateLimiter, cacheMiddleware(600), ProductControllers.getProductById);
 
-router.route("/categories")
-  .get(IPRateLimiter, ProductControllers.getAllCategories)
-  .post(IPRateLimiter, userMiddleware, ProductControllers.createCategory);
+// Các route khác không cần cache vì là write operation
+router.post("/", IPRateLimiter, userMiddleware, ProductControllers.createProduct);
+router.put("/:id", IPRateLimiter, userMiddleware, ProductControllers.updateProduct);
+router.delete("/:id", IPRateLimiter, userMiddleware, ProductControllers.deleteProduct);
 
-router.route("/categories/:id")
-  .get(IPRateLimiter, ProductControllers.getCategoryById)
-  .put(IPRateLimiter, userMiddleware, ProductControllers.updateCategory)
-  .delete(IPRateLimiter, userMiddleware, ProductControllers.deleteCategory);
-
-export {router as ProductRouter};
+export { router as ProductRouter };

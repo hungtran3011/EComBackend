@@ -1,37 +1,7 @@
-import { User } from "../schemas/user.schema.js";
 import { config } from "dotenv";
-import { z } from "zod";
-import bcrypt from "bcrypt";
-import mongoose from "mongoose";
+import { UserService } from "../services/user.service.js";
 
 config();
-
-/**
- * @name UserSchema
- * @author hungtran3011
- * @description Schema viết bằng Zod để xác thực và kiểm tra tính hợp lệ của dữ liệu người dùng trước khi thực hiện các thao tác CRUD trong hệ thống. Schema này đảm bảo tất cả dữ liệu người dùng đều tuân thủ cấu trúc và ràng buộc đã định nghĩa.
- */
-const UserSchema = z.object({
-  id: z.string().optional(),
-  name: z.string()
-    .min(1, "Tên không được để trống")
-    .transform(val => val.trim()),
-  email: z.string()
-    .email("Email không hợp lệ")
-    .optional()
-    .transform(val => val ? val.trim().toLowerCase() : undefined),
-  phoneNumber: z.string()
-    .min(1, "Số điện thoại không được để trống")
-    .transform(val => val.trim()),
-  address: z.object({
-    homeNumber: z.string().optional(),
-    street: z.string().optional(),
-    district: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    province: z.string().optional()
-  }).optional(),
-});
 
 /**
  * @swagger
@@ -108,40 +78,15 @@ const UserSchema = z.object({
  */
 const getAllUsers = async (req, res) => {
   try {
-    // Check if user is admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: "Access denied. Admin privileges required." });
     }
 
-    const start = parseInt(req.query.start) || 0;
-    const limit = parseInt(req.query.limit) || 10;
-    const userList = await User.find({}).skip(start).limit(limit);
-
-    if (userList.length > 0) {
-      const total = await User.countDocuments();
-      const pages = Math.ceil(total / limit);
-
-      const returnUserList = userList.map(user => {
-        return UserSchema.parse({
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phoneNumber: user.phoneNumber,
-          address: user.address,
-        });
-      });
-
-      const response = {
-        pages,
-        limit,
-        total,
-        users: returnUserList
-      };
-
-      return res.status(200).json(response);
-    }
-
-    return res.status(404).json({ message: "No users found" });
+    const { start = 0, limit = 10 } = req.query;
+    const response = await UserService.getAllUsers(start, limit);
+    
+    // Vẫn trả về 200 OK ngay cả khi không có người dùng nào
+    return res.status(200).json(response);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -208,66 +153,11 @@ const getAllUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Validate MongoDB ID format to prevent unnecessary database queries
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user ID format"
-      });
-    }
-
-    // Check if user is admin or requesting their own data
-    if (req.user.role !== 'admin' && req.user.id !== id) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. You can only view your own profile."
-      });
-    }
-
-    // Find user with specific fields projection to exclude sensitive data
-    const user = await User.findById(id).select('-password -refreshToken -__v');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found"
-      });
-    }
-
-    // Use zod to validate and transform the data
-    // Convert MongoDB ObjectId to string before validation
-    const userData = UserSchema.parse({
-      id: user._id.toString(), // Convert ObjectId to string
-      name: user.name,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      address: user.address,
-    });
-
-    // Return a well-structured response
-    return res.status(200).json({
-      success: true,
-      message: "User retrieved successfully",
-      data: userData
-    });
+    const { user } = req;
+    const response = await UserService.getUserById(id, user);
+    return res.status(200).json(response);
   } catch (error) {
-    // Specific error handling for Zod validation failures
-    if (error.name === 'ZodError') {
-      return res.status(422).json({
-        success: false,
-        message: "Data validation error",
-        errors: error.errors
-      });
-    }
-
-    // General error handling
-    console.error(`Error retrieving user: ${error.message}`);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to retrieve user information",
-      error: process.env.NODE_ENV === 'production' ? undefined : error.message
-    });
+    return res.status(500).json({ message: error.message });
   }
 }
 
@@ -342,58 +232,15 @@ const getUserById = async (req, res) => {
  */
 const createNonRegisteredUser = async (req, res) => {
   try {
-    // Check if user is admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ message: "Access denied. Admin privileges required." });
     }
 
-    const { name, email, phoneNumber, address } = req.body;
-
-    // Validate and transform using the UserSchema
-    let validatedData;
-    try {
-      validatedData = UserSchema.parse({ name, email, phoneNumber, address });
-    } catch (validationError) {
-      return res.status(400).json({
-        message: "Validation error",
-        errors: validationError.errors
-      });
-    }
-
-    // Check if user already exists before proceeding
-    const existingUser = await User.findOne({
-      $or: [
-        { email: validatedData.email },
-        { phoneNumber: validatedData.phoneNumber }
-      ]
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
-    // Create new user with validated data
-    const newUser = new User({
-      ...validatedData,
-      isRegistered: false,
-      role: "anon",
-      password: "",
-      refreshToken: ""
-    });
-
-    await newUser.save();
-
-    // Remove sensitive data before sending response
-    const userResponse = newUser.toObject();
-    delete userResponse.password;
-    delete userResponse.refreshToken;
-
-    res.status(201).json({
-      message: "User created successfully",
-      user: userResponse,
-    });
+    const userData = req.body;
+    const response = await UserService.createNonRegisteredUser(userData);
+    return res.status(201).json(response);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
   }
 }
 
@@ -530,52 +377,12 @@ const createNonRegisteredUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user ID format"
-      });
-    }
-
-    // Check if user is admin or updating their own data
-    if (req.user.role !== 'admin' && req.user.id !== id) {
-      return res.status(403).json({ message: "Access denied. You can only update your own profile." });
-    }
-
-    // Extract data from request body
-    const { name, email, phoneNumber, address } = req.body;
-
-    // Create update object with only provided fields
-    const updateData = {};
-
-    if (name !== undefined) updateData.name = name.trim();
-    if (email !== undefined) updateData.email = email.trim().toLowerCase();
-    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber.trim();
-    if (address !== undefined) updateData.address = address;
-
-    // Validate the update data using Zod schema
-    try {
-      const updatedUser = await User.findOneAndUpdate(
-        { _id: id },
-        UserSchema.parse(updateData),
-        { new: true, runValidators: true }
-      ).select('-password -refreshToken -__v');
-
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      return res.status(200).json(updatedUser);
-    } catch (validationError) {
-      return res.status(400).json({
-        message: "Validation error",
-        errors: validationError.errors
-      });
-    }
-
-  } catch (e) {
-    res.status(500).json({ message: e.message });
+    const { user } = req;
+    const updateData = req.body;
+    const response = await UserService.updateUser(id, user, updateData);
+    return res.status(200).json(response);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 }
 
@@ -623,26 +430,11 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid user ID format"
-      });
-    }
-
-    // Check if user is admin or deleting their own account
-    if (req.user.role !== 'admin' && req.user.id !== id) {
-      return res.status(403).json({ message: "Access denied. You can only delete your own account." });
-    }
-
-    const deletedUser = await User.findOneAndDelete({ _id: id });
-    if (!deletedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    const { user } = req;
+    await UserService.deleteUser(id, user);
     return res.status(204).send();
-  } catch (e) {
-    res.status(500).json({ message: e.message });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 }
 

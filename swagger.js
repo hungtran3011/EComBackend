@@ -2,6 +2,7 @@ import swaggerJSDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import express from 'express';
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -225,7 +226,7 @@ const swaggerSpec = swaggerJSDoc(options);
 
 /**
  * Sets up Swagger documentation for the Express application
- * @param {import('express').Application} app - Express application
+ * @param {express.Application} app - Express application
  * @param {number} port - Server port number
  */
 const swaggerDocs = (app, port) => {

@@ -1,5 +1,20 @@
 import mongoose from "mongoose";
-import { CartItem } from "./types.schema.js";
+// import { CartItem } from "./types.schema.js";
+
+/**
+ * @module schemas
+ * @name CartItem
+ * @description An item in a user's shopping cart
+ * @typedef {Object} CartItem
+ * @property {ObjectId} product - Reference to the product in the cart
+ * @property {number} quantity - Number of units of the product in the cart
+ * @property {Date} createdAt - When the item was added to the cart
+ * @property {Date} updatedAt - When the item was last updated
+ */
+const CartItem = mongoose.Schema({
+  product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  quantity: { type: Number, required: true },
+});
 
 /**
  * @module schemas
