@@ -15,7 +15,7 @@ import { MainRouter } from "./routes/index.js";
 import swaggerDocs from "./swagger.js";
 import { securityMiddleware } from "./middleware/security.middleware.js";
 import redisService from './services/redis.service.js';
-import { csrfErrorHandler } from "./middleware/csrf.middleware.js";
+import { csrfErrorHandler, csrfProtection } from "./middleware/csrf.middleware.js";
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -56,6 +56,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Cookie and session handling (needed for CSRF)
+app.use(csrfProtection())
 app.use(cookieParser());
 app.use(session({
   secret: process.env.SESSION_SECRET,
