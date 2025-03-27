@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: swagger.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: swagger.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// Create __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Swagger definition
+const swaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: 'EComApp API Documentation',
+    version: '1.0.0',
+    description: 'API documentation for the EComApp Backend',
+    license: {
+      name: 'MIT',
+      url: 'https://opensource.org/licenses/MIT',
+    },
+    contact: {
+      name: 'Hung Tran',
+      email: 'hungtran30112004@gmail.com',
+    },
+  },
+  servers: [
+    {
+      url: 'http://localhost:8080/api',
+      description: 'Development server',
+    },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+    },
+  },
+  security: [
+    {
+      bearerAuth: [],
+    },
+  ],
+};
+
+// Options for the swagger docs
+const options = {
+  swaggerDefinition,
+  // Paths to files containing OpenAPI definitions
+  apis: [
+    path.join(__dirname, './routes/*.js'),
+    path.join(__dirname, './controllers/*.js'),
+    path.join(__dirname, './schemas/*.js'),
+  ],
+};
+
+// Initialize swagger-jsdoc
+const swaggerSpec = swaggerJSDoc(options);
+
+/**
+ * Sets up Swagger documentation for the Express application
+ * @param {express.Application} app - Express application
+ * @param {number} port - Server port number
+ */
+const swaggerDocs = (app, port) => {
+  // Route for swagger docs
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    swaggerOptions: {
+      persistAuthorization: false,
+    },
+  }));
+
+  // Route to get swagger.json
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+
+  console.log(`📚 Swagger docs available at http://localhost:${port}/api-docs`);
+};
+
+export default swaggerDocs;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#CategoriesValidationSchema">CategoriesValidationSchema</a></li><li><a href="global.html#CategoryModel">CategoryModel</a></li><li><a href="global.html#CategorySchema">CategorySchema</a></li><li><a href="global.html#CategoryValidationSchema">CategoryValidationSchema</a></li><li><a href="global.html#FieldDefinitionSchema">FieldDefinitionSchema</a></li><li><a href="global.html#IPRateLimiter">IPRateLimiter</a></li><li><a href="global.html#OrderItem">OrderItem</a></li><li><a href="global.html#OrderItemModel">OrderItemModel</a></li><li><a href="global.html#OrderModel">OrderModel</a></li><li><a href="global.html#OrderSchema">OrderSchema</a></li><li><a href="global.html#PaginationValidation">PaginationValidation</a></li><li><a href="global.html#ProductFieldValueSchema">ProductFieldValueSchema</a></li><li><a href="global.html#ProductListValidationSchema">ProductListValidationSchema</a></li><li><a href="global.html#ProductModel">ProductModel</a></li><li><a href="global.html#ProductSchema">ProductSchema</a></li><li><a href="global.html#StorageItemModel">StorageItemModel</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#addToCart">addToCart</a></li><li><a href="global.html#adminMiddleware">adminMiddleware</a></li><li><a href="global.html#adminSignIn">adminSignIn</a></li><li><a href="global.html#cancelOrder">cancelOrder</a></li><li><a href="global.html#completeOrder">completeOrder</a></li><li><a href="global.html#createCategory">createCategory</a></li><li><a href="global.html#createCategoryService">createCategoryService</a></li><li><a href="global.html#createNonRegisteredUser">createNonRegisteredUser</a></li><li><a href="global.html#createOrder">createOrder</a></li><li><a href="global.html#createProduct">createProduct</a></li><li><a href="global.html#createProductService">createProductService</a></li><li><a href="global.html#deleteCartItem">deleteCartItem</a></li><li><a href="global.html#deleteCategory">deleteCategory</a></li><li><a href="global.html#deleteCategoryService">deleteCategoryService</a></li><li><a href="global.html#deleteProduct">deleteProduct</a></li><li><a href="global.html#deleteProductService">deleteProductService</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#formatFieldValues">formatFieldValues</a></li><li><a href="global.html#generateOTP">generateOTP</a></li><li><a href="global.html#getAllCategories">getAllCategories</a></li><li><a href="global.html#getAllCategoriesService">getAllCategoriesService</a></li><li><a href="global.html#getAllOrders">getAllOrders</a></li><li><a href="global.html#getAllProducts">getAllProducts</a></li><li><a href="global.html#getAllProductsService">getAllProductsService</a></li><li><a href="global.html#getAllUserCart">getAllUserCart</a></li><li><a href="global.html#getAllUsers">getAllUsers</a></li><li><a href="global.html#getCategoryById">getCategoryById</a></li><li><a href="global.html#getCategoryByIdService">getCategoryByIdService</a></li><li><a href="global.html#getOrderById">getOrderById</a></li><li><a href="global.html#getProductById">getProductById</a></li><li><a href="global.html#getProductByIdService">getProductByIdService</a></li><li><a href="global.html#getUserById">getUserById</a></li><li><a href="global.html#handleLogout">handleLogout</a></li><li><a href="global.html#handleRefreshToken">handleRefreshToken</a></li><li><a href="global.html#isValidMongoId">isValidMongoId</a></li><li><a href="global.html#isValidObjectIdWithOptions">isValidObjectIdWithOptions</a></li><li><a href="global.html#isValidSchemaObjectId">isValidSchemaObjectId</a></li><li><a href="global.html#registerUser">registerUser</a></li><li><a href="global.html#router">router</a></li><li><a href="global.html#saveOTP">saveOTP</a></li><li><a href="global.html#sendOTPByEmail">sendOTPByEmail</a></li><li><a href="global.html#signIn">signIn</a></li><li><a href="global.html#swaggerDocs">swaggerDocs</a></li><li><a href="global.html#updateCartItemQuantity">updateCartItemQuantity</a></li><li><a href="global.html#updateCategory">updateCategory</a></li><li><a href="global.html#updateCategoryService">updateCategoryService</a></li><li><a href="global.html#updateOrder">updateOrder</a></li><li><a href="global.html#updateProduct">updateProduct</a></li><li><a href="global.html#updateProductService">updateProductService</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadRateLimiter">uploadRateLimiter</a></li><li><a href="global.html#userMiddleware">userMiddleware</a></li><li><a href="global.html#validateFieldType">validateFieldType</a></li><li><a href="global.html#verifyOTP">verifyOTP</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Mar 27 2025 08:36:07 GMT+0700 (Indochina Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

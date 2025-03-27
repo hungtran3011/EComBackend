@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/auth.controller.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/auth.controller.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import AuthService from "../services/auth.service.js";
+import jwt from "jsonwebtoken";
+
+/**
+ * @swagger
+ * /auth/sign-up:
+ *   post:
+ *     summary: Đăng ký một tài khoản người dùng mới
+ *     description: 
+ *        Cho phép người dùng đăng ký tài khoản mới với email và/hoặc số điện thoại. \
+ *        Chúng tôi sẽ kiểm tra xem bạn đã đăng ký chưa - nếu có thì xin lỗi, bạn không thể đăng ký lại đâu! \
+ *        Nếu chưa, chúng tôi sẽ tạo tài khoản mới cho bạn và trả về thông tin chi tiết. \
+ *        Đừng lo, chúng tôi không lưu trữ mật khẩu của bạn dưới dạng văn bản thuần túy đâu - tất cả đều được mã hóa an toàn!
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - phoneNumber
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Tên đầy đủ của bạn (không phải nickname nhé!)
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email hợp lệ để chúng tôi có thể liên lạc với bạn
+ *               phoneNumber:
+ *                 type: string
+ *                 description: Số điện thoại của bạn (để chúng tôi gọi khi đơn hàng đến nơi)
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: Mật khẩu mạnh (đừng dùng "123456" nhé, chúng tôi sẽ buồn lắm!)
+ *               address:
+ *                 type: object
+ *                 description: Địa chỉ giao hàng của bạn
+ *                 properties:
+ *                   homeNumber:
+ *                     type: string
+ *                     description: Số nhà/căn hộ
+ *                   street:
+ *                     type: string
+ *                     description: Tên đường
+ *                   district:
+ *                     type: string
+ *                     description: Quận/huyện
+ *                   city:
+ *                     type: string
+ *                     description: Thành phố
+ *                   state:
+ *                     type: string
+ *                     description: Bang (nếu có)
+ *                   province:
+ *                     type: string
+ *                     description: Tỉnh
+ *     responses:
+ *       201:
+ *         description: Đăng ký thành công! Chào mừng bạn đến với gia đình chúng tôi!
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 phoneNumber:
+ *                   type: string
+ *                 address:
+ *                   type: object
+ *                 isRegistered:
+ *                   type: boolean
+ * 
+ *       400:
+ *         description: Rất tiếc! Người dùng này đã tồn tại rồi. Có phải bạn đã quên mật khẩu?
+ *       500:
+ *         description: Ôi không! Máy chủ gặp lỗi. Hãy thử lại sau nhé!
+ */
+/**
+ * @name registerUser
+ * @author hungtran3011
+ * @description Đăng ký người dùng mới, cho phép sử dụng số điện thoại hoặc email để đăng nhập
+ * Xác thực bằng mật khẩu, sau này có thể thêm xác thực 2 yếu tố như mail hay authenticate app
+ * Có thể thêm các thông tin khác như địa chỉ
+ * @summary Đăng ký người dùng mới
+ * 
+ */
+const registerUser = async (req, res) => {
+  try {
+    const userResponse = await AuthService.registerUser(req.body);
+    res.status(201).json(userResponse);
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
+  }
+};
+
+/**
+ * @swagger
+ * /auth/sign-in:
+ *   post:
+ *     summary: Đăng nhập vào tài khoản của bạn
+ *     description: >
+ *       Đăng nhập vào hệ thống với email hoặc số điện thoại và mật khẩu của bạn. 
+ *       Sau khi đăng nhập thành công, bạn sẽ nhận được access token và refresh token. 
+ *       Access token giúp bạn truy cập các tài nguyên được bảo vệ, 
+ *       còn refresh token sẽ giúp bạn lấy access token mới khi nó hết hạn mà không cần đăng nhập lại. 
+ *       Giống như có một người bạn luôn đứng sẵn ở cổng để mở cửa cho bạn vậy!
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email đã đăng ký của bạn
+ *               phoneNumber:
+ *                 type: string
+ *                 description: Hoặc số điện thoại đã đăng ký nếu bạn thích
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: Mật khẩu bí mật của bạn (đừng cho ai biết nhé!)
+ *     responses:
+ *       200:
+ *         description: Đăng nhập thành công! Chào mừng trở lại!
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   description: Token để truy cập hệ thống (có hiệu lực trong 1 giờ)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: Token để làm mới access token (có hiệu lực trong 1 ngày)
+ *                 user:
+ *                   type: object
+ *                   description: Thông tin người dùng đã đăng nhập
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: ID người dùng
+ *                     name:
+ *                       type: string
+ *                       description: Tên người dùng
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       description: Email người dùng
+ *                     phoneNumber:
+ *                       type: string
+ *                       description: Số điện thoại người dùng
+ *                     address:
+ *                       type: object
+ *                       description: Địa chỉ người dùng 
+ *                       properties:
+ *                          
+ *                     role:
+ *                       type: string
+ *                       enum: [customer, admin, anon]
+ *                       description: Vai trò của người dùng
+ *       401:
+ *         description: Sai mật khẩu rồi! Hay là bạn đã quên mật khẩu?
+ *       404:
+ *         description: Không tìm thấy tài khoản này. Có lẽ bạn chưa đăng ký?
+ *       500:
+ *         description: Máy chủ đang gặp vấn đề. Xin lỗi vì sự bất tiện này!
+ */
+/**
+ * @name signIn
+ * @author hungtran3011
+ * @description Đăng nhập người dùng bằng email/số điện thoại và mật khẩu
+ * @param {object} req - Express request object
+ * @param {object} req.body - Request body
+ * @param {string} [req.body.email] - Email của người dùng
+ * @param {string} [req.body.phoneNumber] - Số điện thoại của người dùng
+ * @param {string} req.body.password - Mật khẩu của người dùng
+ * @param {object} res - Express response object
+ * @returns {Promise&lt;void>} Promise không có giá trị trả về
+ */
+const signIn = async (req, res) => {
+  try {
+    const { accessToken, user } = await AuthService.signIn(req.body);
+    res.status(200).json({ accessToken, user });
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
+  }
+};
+
+/**
+ * @swagger
+ * /auth/refresh-token:
+ *   post:
+ *     summary: Làm mới access token
+ *     description: >
+ *       Khi access token của bạn hết hạn, hãy dùng refresh token để lấy một access token mới mà không cần đăng nhập lại. 
+ *       Giống như việc gia hạn vé xem phim mà không cần mua vé mới vậy! 
+ *       Nhớ giữ refresh token an toàn nhé, nếu không người khác có thể mạo danh bạn đấy!
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 description: Refresh token bạn đã nhận được khi đăng nhập
+ *     responses:
+ *       200:
+ *         description: Đây là access token mới của bạn! Sử dụng vui vẻ nhé!
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   description: Access token mới để tiếp tục truy cập hệ thống
+ *       401:
+ *         description: Bạn chưa cung cấp refresh token. Làm sao chúng tôi giúp bạn được đây?
+ *       403:
+ *         description: Refresh token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại!
+ */
+/**
+ * @name handleRefreshToken
+ * @author hungtran3011
+ * @description Làm mới access token bằng refresh token. 
+ * @param {object} req - Express request object
+ * @param {object} req.body - Request body
+ * @param {string} req.body.refreshToken - Refresh token để tạo access token mới
+ * @param {object} res - Express response object
+ * @returns {void}
+ */
+const handleRefreshToken = async (req, res) => {
+  try {
+    const accessToken = await AuthService.handleRefreshToken(req.body.refreshToken);
+    res.status(200).json({ accessToken });
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
+  }
+}
+
+/**
+ * @swagger
+ * /auth/sign-out:
+ *   post:
+ *     summary: Đăng xuất khỏi hệ thống
+ *     description: >
+ *       Đăng xuất an toàn khỏi hệ thống bằng cách vô hiệu hóa refresh token của bạn. 
+ *       Điều này giúp bảo vệ tài khoản của bạn khỏi những kẻ xấu. 
+ *       Giống như việc khóa cửa nhà khi bạn ra ngoài vậy - an toàn là trên hết!
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID người dùng của bạn
+ *     responses:
+ *       200:
+ *         description: Đăng xuất thành công! Hẹn gặp lại bạn sớm nhé!
+ *       500:
+ *         description: Rất tiếc, có lỗi xảy ra khi đăng xuất. Hãy thử lại sau!
+ */
+/**
+ * @name handleLogout
+ * @author hungtran3011
+ * @description Đăng xuất người dùng bằng cách xóa refresh token
+ * @param {object} req - Express request object
+ * @param {object} req.params - Route parameters
+ * @param {string} req.params.id - ID người dùng cần đăng xuất
+ * @param {object} res - Express response object
+ * @returns {void}
+ */
+const handleLogout = async (req, res) => {
+  try {
+    await AuthService.handleLogout(req.params.id);
+    res.status(200).json({ message: "Logout successfully" });
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
+  }
+}
+
+/**
+ * @swagger
+ * /auth/admin/sign-in:
+ *   post:
+ *     summary: Đăng nhập với quyền quản trị viên
+ *     description: >
+ *       Điểm truy cập an toàn dành riêng cho quản trị viên. 
+ *       Yêu cầu xác thực đa lớp và chỉ cho phép từ địa chỉ IP được phê duyệt.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - adminKey
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 format: password
+ *               adminKey:
+ *                 type: string
+ *                 description: Khóa bí mật mà chỉ quản trị viên biết
+ *     responses:
+ *       200:
+ *         description: Đăng nhập quản trị viên thành công
+ *       401:
+ *         description: Không được phép truy cập
+ *       403:
+ *         description: Bị cấm truy cập
+ */
+const adminSignIn = async (req, res) => {
+  try {
+    const { accessToken, refreshToken, user } = await AuthService.adminSignIn(req.body, req.headers);
+    res.status(200).json({ accessToken, refreshToken, user });
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message });
+  }
+};
+
+const AuthControllers = {
+  registerUser,
+  signIn,
+  handleRefreshToken,
+  handleLogout,
+  adminSignIn,
+};
+
+export default AuthControllers;
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#CategoriesValidationSchema">CategoriesValidationSchema</a></li><li><a href="global.html#CategoryModel">CategoryModel</a></li><li><a href="global.html#CategorySchema">CategorySchema</a></li><li><a href="global.html#CategoryValidationSchema">CategoryValidationSchema</a></li><li><a href="global.html#FieldDefinitionSchema">FieldDefinitionSchema</a></li><li><a href="global.html#IPRateLimiter">IPRateLimiter</a></li><li><a href="global.html#OrderItem">OrderItem</a></li><li><a href="global.html#OrderItemModel">OrderItemModel</a></li><li><a href="global.html#OrderModel">OrderModel</a></li><li><a href="global.html#OrderSchema">OrderSchema</a></li><li><a href="global.html#PaginationValidation">PaginationValidation</a></li><li><a href="global.html#ProductFieldValueSchema">ProductFieldValueSchema</a></li><li><a href="global.html#ProductListValidationSchema">ProductListValidationSchema</a></li><li><a href="global.html#ProductModel">ProductModel</a></li><li><a href="global.html#ProductSchema">ProductSchema</a></li><li><a href="global.html#StorageItemModel">StorageItemModel</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#addToCart">addToCart</a></li><li><a href="global.html#adminMiddleware">adminMiddleware</a></li><li><a href="global.html#adminSignIn">adminSignIn</a></li><li><a href="global.html#cancelOrder">cancelOrder</a></li><li><a href="global.html#completeOrder">completeOrder</a></li><li><a href="global.html#createCategory">createCategory</a></li><li><a href="global.html#createCategoryService">createCategoryService</a></li><li><a href="global.html#createNonRegisteredUser">createNonRegisteredUser</a></li><li><a href="global.html#createOrder">createOrder</a></li><li><a href="global.html#createProduct">createProduct</a></li><li><a href="global.html#createProductService">createProductService</a></li><li><a href="global.html#deleteCartItem">deleteCartItem</a></li><li><a href="global.html#deleteCategory">deleteCategory</a></li><li><a href="global.html#deleteCategoryService">deleteCategoryService</a></li><li><a href="global.html#deleteProduct">deleteProduct</a></li><li><a href="global.html#deleteProductService">deleteProductService</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#formatFieldValues">formatFieldValues</a></li><li><a href="global.html#generateOTP">generateOTP</a></li><li><a href="global.html#getAllCategories">getAllCategories</a></li><li><a href="global.html#getAllCategoriesService">getAllCategoriesService</a></li><li><a href="global.html#getAllOrders">getAllOrders</a></li><li><a href="global.html#getAllProducts">getAllProducts</a></li><li><a href="global.html#getAllProductsService">getAllProductsService</a></li><li><a href="global.html#getAllUserCart">getAllUserCart</a></li><li><a href="global.html#getAllUsers">getAllUsers</a></li><li><a href="global.html#getCategoryById">getCategoryById</a></li><li><a href="global.html#getCategoryByIdService">getCategoryByIdService</a></li><li><a href="global.html#getOrderById">getOrderById</a></li><li><a href="global.html#getProductById">getProductById</a></li><li><a href="global.html#getProductByIdService">getProductByIdService</a></li><li><a href="global.html#getUserById">getUserById</a></li><li><a href="global.html#handleLogout">handleLogout</a></li><li><a href="global.html#handleRefreshToken">handleRefreshToken</a></li><li><a href="global.html#isValidMongoId">isValidMongoId</a></li><li><a href="global.html#isValidObjectIdWithOptions">isValidObjectIdWithOptions</a></li><li><a href="global.html#isValidSchemaObjectId">isValidSchemaObjectId</a></li><li><a href="global.html#registerUser">registerUser</a></li><li><a href="global.html#router">router</a></li><li><a href="global.html#saveOTP">saveOTP</a></li><li><a href="global.html#sendOTPByEmail">sendOTPByEmail</a></li><li><a href="global.html#signIn">signIn</a></li><li><a href="global.html#swaggerDocs">swaggerDocs</a></li><li><a href="global.html#updateCartItemQuantity">updateCartItemQuantity</a></li><li><a href="global.html#updateCategory">updateCategory</a></li><li><a href="global.html#updateCategoryService">updateCategoryService</a></li><li><a href="global.html#updateOrder">updateOrder</a></li><li><a href="global.html#updateProduct">updateProduct</a></li><li><a href="global.html#updateProductService">updateProductService</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadRateLimiter">uploadRateLimiter</a></li><li><a href="global.html#userMiddleware">userMiddleware</a></li><li><a href="global.html#validateFieldType">validateFieldType</a></li><li><a href="global.html#verifyOTP">verifyOTP</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Mar 27 2025 08:36:07 GMT+0700 (Indochina Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

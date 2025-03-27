@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: services/otp.service.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: services/otp.service.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import crypto from 'crypto';
+import nodemailer from 'nodemailer';
+import { OTP } from '../schemas/otp.schema.js';
+import { config } from 'dotenv';
+
+config();
+
+class OTPService {
+  constructor() {
+    this.emailTransport = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD
+      }
+    });
+  }
+
+  /**
+   * @name generateOTP
+   * @description Tạo mã OTP ngẫu nhiên gồm 6 chữ số
+   * @returns {string} Mã OTP được tạo
+   */
+  generateOTP() {
+    return crypto.randomInt(100000, 999999).toString();
+  }
+  
+  /**
+   * @name saveOTP
+   * @description Lưu mã OTP vào cơ sở dữ liệu
+   * @param {string} userId - ID của người dùng
+   * @param {string} purpose - Mục đích sử dụng OTP (login, register, reset_password)
+   * @returns {Promise&lt;string>} Mã OTP được tạo
+   */
+  async saveOTP(userId, purpose) {
+    // Delete any existing OTP for this user and purpose
+    await OTP.deleteMany({ userId, purpose });
+    
+    const otp = this.generateOTP();
+    await OTP.create({
+      userId,
+      otp,
+      purpose
+    });
+    
+    return otp;
+  }
+  
+  /**
+   * @name verifyOTP
+   * @description Xác minh mã OTP
+   * @param {string} userId - ID của người dùng
+   * @param {string} otp - Mã OTP cần xác minh
+   * @param {string} purpose - Mục đích sử dụng OTP
+   * @returns {Promise&lt;boolean>} Kết quả xác minh (true nếu hợp lệ, false nếu không hợp lệ)
+   */
+  async verifyOTP(userId, otp, purpose) {
+    const otpRecord = await OTP.findOne({ userId, otp, purpose });
+    
+    if (!otpRecord) {
+      return false;
+    }
+    
+    // Delete the OTP to prevent reuse
+    await OTP.deleteOne({ _id: otpRecord._id });
+    return true;
+  }
+  
+  /**
+   * @name sendOTPByEmail
+   * @description Gửi mã OTP qua email
+   * @param {string} email - Địa chỉ email của người nhận
+   * @param {string} otp - Mã OTP cần gửi
+   * @param {string} purpose - Mục đích sử dụng OTP (login, register, reset_password)
+   * @returns {Promise&lt;void>} Không trả về giá trị
+   */
+  async sendOTPByEmail(email, otp, purpose) {
+    const subject = 
+      purpose === 'login' ? 'Xác thực đăng nhập của bạn' : 
+      purpose === 'register' ? 'Xác thực đăng ký tài khoản' : 
+      'Xác thực đặt lại mật khẩu';
+    
+    const purposeText = 
+      purpose === 'login' ? 'đăng nhập vào tài khoản' : 
+      purpose === 'register' ? 'hoàn tất đăng ký tài khoản' : 
+      'đặt lại mật khẩu';
+    
+    const html = `
+      &lt;div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        &lt;h2 style="color: #333;">Mã xác thực của bạn&lt;/h2>
+        &lt;p>Sử dụng mã OTP sau để ${purposeText}:&lt;/p>
+        &lt;div style="background-color: #f4f4f4; padding: 15px; text-align: center; margin: 20px 0; border-radius: 5px;">
+          &lt;h1 style="letter-spacing: 5px; font-size: 32px; margin: 0;">${otp}&lt;/h1>
+        &lt;/div>
+        &lt;p>Mã này sẽ hết hạn sau 10 phút.&lt;/p>
+        &lt;p>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.&lt;/p>
+        &lt;hr style="border: 1px solid #eee; margin: 20px 0;" />
+        &lt;p style="color: #777; font-size: 12px;">Email này được gửi tự động, vui lòng không trả lời.&lt;/p>
+      &lt;/div>
+    `;
+    
+    await this.emailTransport.sendMail({
+      from: `"${process.env.EMAIL_FROM_NAME}" &lt;${process.env.EMAIL_FROM_ADDRESS}>`,
+      to: email,
+      subject,
+      html
+    });
+  }
+}
+
+export default new OTPService();</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#CategoriesValidationSchema">CategoriesValidationSchema</a></li><li><a href="global.html#CategoryModel">CategoryModel</a></li><li><a href="global.html#CategorySchema">CategorySchema</a></li><li><a href="global.html#CategoryValidationSchema">CategoryValidationSchema</a></li><li><a href="global.html#FieldDefinitionSchema">FieldDefinitionSchema</a></li><li><a href="global.html#IPRateLimiter">IPRateLimiter</a></li><li><a href="global.html#OrderItem">OrderItem</a></li><li><a href="global.html#OrderItemModel">OrderItemModel</a></li><li><a href="global.html#OrderModel">OrderModel</a></li><li><a href="global.html#OrderSchema">OrderSchema</a></li><li><a href="global.html#PaginationValidation">PaginationValidation</a></li><li><a href="global.html#ProductFieldValueSchema">ProductFieldValueSchema</a></li><li><a href="global.html#ProductListValidationSchema">ProductListValidationSchema</a></li><li><a href="global.html#ProductModel">ProductModel</a></li><li><a href="global.html#ProductSchema">ProductSchema</a></li><li><a href="global.html#StorageItemModel">StorageItemModel</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#addToCart">addToCart</a></li><li><a href="global.html#adminMiddleware">adminMiddleware</a></li><li><a href="global.html#adminSignIn">adminSignIn</a></li><li><a href="global.html#cancelOrder">cancelOrder</a></li><li><a href="global.html#completeOrder">completeOrder</a></li><li><a href="global.html#createCategory">createCategory</a></li><li><a href="global.html#createCategoryService">createCategoryService</a></li><li><a href="global.html#createNonRegisteredUser">createNonRegisteredUser</a></li><li><a href="global.html#createOrder">createOrder</a></li><li><a href="global.html#createProduct">createProduct</a></li><li><a href="global.html#createProductService">createProductService</a></li><li><a href="global.html#deleteCartItem">deleteCartItem</a></li><li><a href="global.html#deleteCategory">deleteCategory</a></li><li><a href="global.html#deleteCategoryService">deleteCategoryService</a></li><li><a href="global.html#deleteProduct">deleteProduct</a></li><li><a href="global.html#deleteProductService">deleteProductService</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#formatFieldValues">formatFieldValues</a></li><li><a href="global.html#generateOTP">generateOTP</a></li><li><a href="global.html#getAllCategories">getAllCategories</a></li><li><a href="global.html#getAllCategoriesService">getAllCategoriesService</a></li><li><a href="global.html#getAllOrders">getAllOrders</a></li><li><a href="global.html#getAllProducts">getAllProducts</a></li><li><a href="global.html#getAllProductsService">getAllProductsService</a></li><li><a href="global.html#getAllUserCart">getAllUserCart</a></li><li><a href="global.html#getAllUsers">getAllUsers</a></li><li><a href="global.html#getCategoryById">getCategoryById</a></li><li><a href="global.html#getCategoryByIdService">getCategoryByIdService</a></li><li><a href="global.html#getOrderById">getOrderById</a></li><li><a href="global.html#getProductById">getProductById</a></li><li><a href="global.html#getProductByIdService">getProductByIdService</a></li><li><a href="global.html#getUserById">getUserById</a></li><li><a href="global.html#handleLogout">handleLogout</a></li><li><a href="global.html#handleRefreshToken">handleRefreshToken</a></li><li><a href="global.html#isValidMongoId">isValidMongoId</a></li><li><a href="global.html#isValidObjectIdWithOptions">isValidObjectIdWithOptions</a></li><li><a href="global.html#isValidSchemaObjectId">isValidSchemaObjectId</a></li><li><a href="global.html#registerUser">registerUser</a></li><li><a href="global.html#router">router</a></li><li><a href="global.html#saveOTP">saveOTP</a></li><li><a href="global.html#sendOTPByEmail">sendOTPByEmail</a></li><li><a href="global.html#signIn">signIn</a></li><li><a href="global.html#swaggerDocs">swaggerDocs</a></li><li><a href="global.html#updateCartItemQuantity">updateCartItemQuantity</a></li><li><a href="global.html#updateCategory">updateCategory</a></li><li><a href="global.html#updateCategoryService">updateCategoryService</a></li><li><a href="global.html#updateOrder">updateOrder</a></li><li><a href="global.html#updateProduct">updateProduct</a></li><li><a href="global.html#updateProductService">updateProductService</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadRateLimiter">uploadRateLimiter</a></li><li><a href="global.html#userMiddleware">userMiddleware</a></li><li><a href="global.html#validateFieldType">validateFieldType</a></li><li><a href="global.html#verifyOTP">verifyOTP</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Mar 27 2025 08:36:07 GMT+0700 (Indochina Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: services/product.service.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: services/product.service.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { Product, Category } from "../schemas/product.schema.js";
+import { 
+  ProductValidationSchema, 
+  ProductListValidationSchema, 
+  CategoryValidationSchema, 
+  CategoriesValidationSchema,
+  validateFieldType 
+} from "../validators/product.validator.js";
+import { isValidMongoId } from "../validators/product.validator.js";
+
+/**
+ * @name getAllProductsService
+ * @description Lấy danh sách tất cả sản phẩm với phân trang
+ * @param {number} page - Số trang
+ * @param {number} limit - Số lượng sản phẩm trên mỗi trang
+ * @returns {Promise&lt;Object>} Danh sách sản phẩm và thông tin phân trang
+ */
+export const getAllProductsService = async (page, limit) => {
+  const startIndex = (page - 1) * limit;
+  const total = await Product.countDocuments();
+  const products = await Product.find().skip(startIndex).limit(limit);
+  return ProductListValidationSchema.parse({ page, limit, total, products });
+};
+
+/**
+ * @name getProductByIdService
+ * @description Lấy thông tin chi tiết của sản phẩm theo ID
+ * @param {string} id - ID của sản phẩm
+ * @returns {Promise&lt;Object>} Thông tin chi tiết của sản phẩm
+ * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy sản phẩm
+ */
+export const getProductByIdService = async (id) => {
+  if (!isValidMongoId(id)) throw new Error("Invalid product ID");
+  const product = await Product.findById(id);
+  if (!product) throw new Error("Product not found");
+  return ProductValidationSchema.parse(product);
+};
+
+/**
+ * @name createProductService
+ * @description Tạo một sản phẩm mới với các trường động từ danh mục
+ * @param {Object} productData - Dữ liệu sản phẩm
+ * @returns {Promise&lt;Object>} Sản phẩm vừa được tạo
+ * @throws {Error} Nếu trường dữ liệu không khớp với định nghĩa danh mục
+ */
+export const createProductService = async (productData) => {
+  // Validate basic product data
+  const { category, fields, ...basicProductData } = productData;
+  
+  // Check if category exists
+  if (!isValidMongoId(category)) {
+    throw new Error("ID danh mục không hợp lệ");
+  }
+  
+  const categoryDoc = await Category.findById(category);
+  if (!categoryDoc) {
+    throw new Error("Không tìm thấy danh mục");
+  }
+  
+  // Process dynamic fields
+  let fieldValues = [];
+  if (fields &amp;&amp; Object.keys(fields).length > 0) {
+    // Create map of category fields for validation
+    const categoryFieldsMap = {};
+    categoryDoc.fields.forEach(field => {
+      categoryFieldsMap[field.name] = {
+        type: field.type,
+        required: field.required
+      };
+    });
+    
+    // Validate required fields
+    const missingRequiredFields = [];
+    categoryDoc.fields.forEach(field => {
+      if (field.required &amp;&amp; fields[field.name] === undefined) {
+        missingRequiredFields.push(field.name);
+      }
+    });
+    
+    if (missingRequiredFields.length > 0) {
+      throw new Error(`Thiếu các trường bắt buộc: ${missingRequiredFields.join(', ')}`);
+    }
+    
+    // Process and validate provided fields
+    for (const [fieldName, fieldValue] of Object.entries(fields)) {
+      const categoryField = categoryFieldsMap[fieldName];
+      
+      // Check if field is defined in category
+      if (!categoryField) {
+        throw new Error(`Trường "${fieldName}" không được định nghĩa trong danh mục này`);
+      }
+      
+      // Type validation
+      const validationError = validateFieldType(fieldValue, categoryField.type);
+      if (validationError) {
+        throw new Error(validationError);
+      }
+      
+      // Add to fieldValues
+      fieldValues.push({
+        name: fieldName,
+        value: fieldValue
+      });
+    }
+  }
+  
+  // Create product with validated data
+  const productToCreate = {
+    ...basicProductData,
+    category,
+    fieldValues
+  };
+  
+  const addedProduct = new Product(productToCreate);
+  await addedProduct.save();
+  
+  // Format response to include fields as object
+  const result = addedProduct.toObject();
+  result.fields = formatFieldValues(result.fieldValues);
+  delete result.fieldValues;
+  
+  return result;
+};
+
+/**
+ * Helper to format fieldValues array into fields object
+ * @param {Array} fieldValues - Array of field name-value pairs
+ * @returns {Object} Object with field names as keys and values as values
+ */
+const formatFieldValues = (fieldValues) => {
+  if (!fieldValues || fieldValues.length === 0) return {};
+  
+  return fieldValues.reduce((obj, field) => {
+    obj[field.name] = field.value;
+    return obj;
+  }, {});
+};
+
+/**
+ * @name updateProductService
+ * @description Cập nhật thông tin sản phẩm
+ * @param {string} id - ID của sản phẩm
+ * @param {Object} updateData - Dữ liệu cần cập nhật
+ * @returns {Promise&lt;Object>} Sản phẩm sau khi được cập nhật
+ * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy sản phẩm
+ */
+export const updateProductService = async (id, updateData) => {
+  if (!isValidMongoId(id)) throw new Error("Invalid product ID");
+  const validatedData = ProductValidationSchema.partial().parse(updateData);
+  const updatedProduct = await Product.findByIdAndUpdate(id, { $set: validatedData }, { new: true });
+  if (!updatedProduct) throw new Error("Product not found");
+  return ProductValidationSchema.parse(updatedProduct.toObject());
+};
+
+/**
+ * @name deleteProductService
+ * @description Xóa sản phẩm theo ID
+ * @param {string} id - ID của sản phẩm
+ * @returns {Promise&lt;Object>} Thông báo xóa thành công
+ * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy sản phẩm
+ */
+export const deleteProductService = async (id) => {
+  if (!isValidMongoId(id)) throw new Error("Invalid product ID");
+  const deletedProduct = await Product.findByIdAndDelete(id);
+  if (!deletedProduct) throw new Error("Product not found");
+  return { message: "Product deleted successfully" };
+};
+
+/**
+ * @name getAllCategoriesService
+ * @description Lấy danh sách tất cả các danh mục sản phẩm
+ * @returns {Promise&lt;Array>} Danh sách các danh mục
+ */
+export const getAllCategoriesService = async () => {
+  const categories = await Category.find();
+  return CategoriesValidationSchema.parse(categories);
+};
+
+/**
+ * @name getCategoryByIdService
+ * @description Lấy thông tin chi tiết của danh mục theo ID
+ * @param {string} id - ID của danh mục
+ * @returns {Promise&lt;Object>} Thông tin chi tiết của danh mục
+ * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy danh mục
+ */
+export const getCategoryByIdService = async (id) => {
+  if (!isValidMongoId(id)) throw new Error("Invalid category ID");
+  const category = await Category.findById(id);
+  if (!category) throw new Error("Category not found");
+  return CategoryValidationSchema.parse(category);
+};
+
+/**
+ * @name createCategoryService
+ * @description Tạo một danh mục mới
+ * @param {Object} categoryData - Dữ liệu danh mục
+ * @returns {Promise&lt;Object>} Danh mục vừa được tạo
+ */
+export const createCategoryService = async (categoryData) => {
+  const newCategory = CategoryValidationSchema.parse(categoryData);
+  const addedCategory = new Category(newCategory);
+  await addedCategory.save();
+  return CategoryValidationSchema.parse(addedCategory.toObject());
+};
+
+/**
+ * @name updateCategoryService
+ * @description Cập nhật thông tin danh mục
+ * @param {string} id - ID của danh mục
+ * @param {Object} updateData - Dữ liệu cần cập nhật
+ * @returns {Promise&lt;Object>} Danh mục sau khi được cập nhật
+ * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy danh mục
+ */
+export const updateCategoryService = async (id, updateData) => {
+  if (!isValidMongoId(id)) throw new Error("Invalid category ID");
+  const validatedData = {};
+  if (updateData.name !== undefined) validatedData.name = CategoryValidationSchema.shape.name.parse(updateData.name);
+  if (updateData.description !== undefined) validatedData.description = CategoryValidationSchema.shape.description.parse(updateData.description);
+  if (updateData.fields !== undefined) validatedData.fields = CategoryValidationSchema.shape.fields.parse(updateData.fields);
+  const updatedCategory = await Category.findByIdAndUpdate(id, { $set: validatedData }, { new: true });
+  if (!updatedCategory) throw new Error("Category not found");
+  return CategoriesValidationSchema.parse(updatedCategory.toObject());
+};
+
+/**
+ * @name deleteCategoryService
+ * @description Xóa danh mục theo ID
+ * @param {string} id - ID của danh mục
+ * @returns {Promise&lt;Object>} Thông báo xóa thành công
+ * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy danh mục
+ */
+export const deleteCategoryService = async (id) => {
+  if (!isValidMongoId(id)) throw new Error("Invalid category ID");
+  const deletedCategory = await Category.findByIdAndDelete(id);
+  if (!deletedCategory) throw new Error("Category not found");
+  return { message: "Category deleted successfully" };
+};
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#CategoriesValidationSchema">CategoriesValidationSchema</a></li><li><a href="global.html#CategoryModel">CategoryModel</a></li><li><a href="global.html#CategorySchema">CategorySchema</a></li><li><a href="global.html#CategoryValidationSchema">CategoryValidationSchema</a></li><li><a href="global.html#FieldDefinitionSchema">FieldDefinitionSchema</a></li><li><a href="global.html#IPRateLimiter">IPRateLimiter</a></li><li><a href="global.html#OrderItem">OrderItem</a></li><li><a href="global.html#OrderItemModel">OrderItemModel</a></li><li><a href="global.html#OrderModel">OrderModel</a></li><li><a href="global.html#OrderSchema">OrderSchema</a></li><li><a href="global.html#PaginationValidation">PaginationValidation</a></li><li><a href="global.html#ProductFieldValueSchema">ProductFieldValueSchema</a></li><li><a href="global.html#ProductListValidationSchema">ProductListValidationSchema</a></li><li><a href="global.html#ProductModel">ProductModel</a></li><li><a href="global.html#ProductSchema">ProductSchema</a></li><li><a href="global.html#StorageItemModel">StorageItemModel</a></li><li><a href="global.html#UserSchema">UserSchema</a></li><li><a href="global.html#addToCart">addToCart</a></li><li><a href="global.html#adminMiddleware">adminMiddleware</a></li><li><a href="global.html#adminSignIn">adminSignIn</a></li><li><a href="global.html#cancelOrder">cancelOrder</a></li><li><a href="global.html#completeOrder">completeOrder</a></li><li><a href="global.html#createCategory">createCategory</a></li><li><a href="global.html#createCategoryService">createCategoryService</a></li><li><a href="global.html#createNonRegisteredUser">createNonRegisteredUser</a></li><li><a href="global.html#createOrder">createOrder</a></li><li><a href="global.html#createProduct">createProduct</a></li><li><a href="global.html#createProductService">createProductService</a></li><li><a href="global.html#deleteCartItem">deleteCartItem</a></li><li><a href="global.html#deleteCategory">deleteCategory</a></li><li><a href="global.html#deleteCategoryService">deleteCategoryService</a></li><li><a href="global.html#deleteProduct">deleteProduct</a></li><li><a href="global.html#deleteProductService">deleteProductService</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#formatFieldValues">formatFieldValues</a></li><li><a href="global.html#generateOTP">generateOTP</a></li><li><a href="global.html#getAllCategories">getAllCategories</a></li><li><a href="global.html#getAllCategoriesService">getAllCategoriesService</a></li><li><a href="global.html#getAllOrders">getAllOrders</a></li><li><a href="global.html#getAllProducts">getAllProducts</a></li><li><a href="global.html#getAllProductsService">getAllProductsService</a></li><li><a href="global.html#getAllUserCart">getAllUserCart</a></li><li><a href="global.html#getAllUsers">getAllUsers</a></li><li><a href="global.html#getCategoryById">getCategoryById</a></li><li><a href="global.html#getCategoryByIdService">getCategoryByIdService</a></li><li><a href="global.html#getOrderById">getOrderById</a></li><li><a href="global.html#getProductById">getProductById</a></li><li><a href="global.html#getProductByIdService">getProductByIdService</a></li><li><a href="global.html#getUserById">getUserById</a></li><li><a href="global.html#handleLogout">handleLogout</a></li><li><a href="global.html#handleRefreshToken">handleRefreshToken</a></li><li><a href="global.html#isValidMongoId">isValidMongoId</a></li><li><a href="global.html#isValidObjectIdWithOptions">isValidObjectIdWithOptions</a></li><li><a href="global.html#isValidSchemaObjectId">isValidSchemaObjectId</a></li><li><a href="global.html#registerUser">registerUser</a></li><li><a href="global.html#router">router</a></li><li><a href="global.html#saveOTP">saveOTP</a></li><li><a href="global.html#sendOTPByEmail">sendOTPByEmail</a></li><li><a href="global.html#signIn">signIn</a></li><li><a href="global.html#swaggerDocs">swaggerDocs</a></li><li><a href="global.html#updateCartItemQuantity">updateCartItemQuantity</a></li><li><a href="global.html#updateCategory">updateCategory</a></li><li><a href="global.html#updateCategoryService">updateCategoryService</a></li><li><a href="global.html#updateOrder">updateOrder</a></li><li><a href="global.html#updateProduct">updateProduct</a></li><li><a href="global.html#updateProductService">updateProductService</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadRateLimiter">uploadRateLimiter</a></li><li><a href="global.html#userMiddleware">userMiddleware</a></li><li><a href="global.html#validateFieldType">validateFieldType</a></li><li><a href="global.html#verifyOTP">verifyOTP</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Thu Mar 27 2025 08:36:07 GMT+0700 (Indochina Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

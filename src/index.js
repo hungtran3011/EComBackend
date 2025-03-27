@@ -12,6 +12,7 @@ import { corsOptions } from "./config/cors.config.js";
 import { MainRouter } from "./routes/index.js";
 import swaggerDocs from "./swagger.js";
 import { securityMiddleware } from "./middleware/security.middleware.js";
+import redisService from './services/redis.service.js';
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +34,13 @@ mongoose.connect(queryString, {
   tls: true
 }).then(() => {
   console.log("Connected to MongoDB");
+  
+  // Đảm bảo Redis cũng được kết nối
+  if (!redisService.isConnected()) {
+    redisService.connect()
+      .then(() => console.log('Redis service initialized'))
+      .catch(err => console.error('Failed to initialize Redis:', err));
+  }
 }).catch((error) => {
   console.error(error);
 })
@@ -60,6 +68,13 @@ app.get("/", (req, res) => {
   res.json({ message: "Server is healthy" });
 })
 
+// Serve all static assets for the docs
+app.use("/docs", express.static(path.join(__dirname, "..", "docs")));
+
+app.get("/docs", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "docs", "index.html"));
+})
+
 // Apply routers with URL prefixes
 app.use("/api", MainRouter);
 
@@ -77,3 +92,16 @@ app.listen(port, () => {
 })
 
 swaggerDocs(app, port);
+
+// Và thêm vào phần tắt ứng dụng
+process.on('SIGINT', async () => {
+  console.log('Shutting down server...');
+  
+  // Đóng kết nối Redis
+  await redisService.disconnect();
+  
+  // Đóng kết nối MongoDB
+  await mongoose.disconnect();
+  
+  process.exit(0);
+});
