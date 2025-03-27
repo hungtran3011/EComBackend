@@ -279,7 +279,8 @@ const sendPasswordResetOTP = async (email) => {
  */
 const resetPassword = async (email, otp, newPassword) => {
   // Tìm người dùng
-  const user = await User.findOne({ email, isRegistered: true });
+  const validEmail = OtpEmailValidationSchema.parse(email);
+  const user = await User.findOne({ validEmail, isRegistered: true });
   if (!user) {
     throw new Error('Không tìm thấy người dùng');
   }
