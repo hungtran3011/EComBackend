@@ -56,7 +56,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Cookie and session handling (needed for CSRF)
-app.use(csrfProtection())
 app.use(cookieParser());
 app.use(session({
   secret: process.env.SESSION_SECRET,
@@ -68,6 +67,7 @@ app.use(session({
     sameSite: 'lax'
   }
 }));
+app.use(csrfProtection());
 
 // CSRF error handler (global)
 app.use(csrfErrorHandler);
