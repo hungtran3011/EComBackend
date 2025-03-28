@@ -4,7 +4,7 @@ import { config } from 'dotenv';
 config();
 
 const tokens = new Tokens();
-const SECRET = process.env.CSRF_SECRET;
+const SECRET = process.env.CSRF_SECRET || 'your-csrf-secret-key-change-this';
 
 /**
  * @name csrfProtection
@@ -27,18 +27,27 @@ export const csrfProtection = (options = {}) => {
   };
 
   return async (req, res, next) => {
+    // Ensure sessions are available
+    if (!req.session) {
+      console.error('Session middleware must be used before CSRF middleware');
+      return next(new Error('Session middleware required'));
+    }
+    
     // Generate CSRF token if it doesn't exist
     if (!req.cookies[opts.cookie.key]) {
-      // Create a new CSRF token
-      const secret = await tokens.secret();
-      const token = tokens.create(secret);
-      
-      // Store the secret in session or dedicated Redis store for high security
-      req.session = req.session || {};
-      req.session.csrfSecret = secret;
-      
-      // Set cookie with the token
-      res.cookie(opts.cookie.key, token, opts.cookie);
+      try {
+        // Create a new CSRF token
+        const secret = await tokens.secret();
+        const token = tokens.create(secret);
+        
+        // Store the secret in session
+        req.session.csrfSecret = secret;
+        
+        // Set cookie with the token
+        res.cookie(opts.cookie.key, token, opts.cookie);
+      } catch (error) {
+        console.error('CSRF token generation error:', error);
+      }
     }
     
     // Skip CSRF check for ignored methods
@@ -52,7 +61,10 @@ export const csrfProtection = (options = {}) => {
       const token = req.headers['x-csrf-token'] || req.body._csrf;
       
       if (!secret || !token) {
-        return res.status(403).json({ message: 'CSRF token missing' });
+        return res.status(403).json({ 
+          message: 'CSRF token missing', 
+          detail: !secret ? 'Session expired' : 'Token not provided' 
+        });
       }
       
       if (!tokens.verify(secret, token)) {
@@ -78,15 +90,4 @@ export const csrfErrorHandler = (err, req, res, next) => {
   next(err);
 };
 
-/**
- * @name generateCsrfToken
- * @description Helper function to generate CSRF token - useful for testing or manual operations
- * @returns {Promise<{secret: string, token: string}>} CSRF secret and token
- */
-export const generateCsrfToken = async () => {
-  const secret = await tokens.secret();
-  const token = tokens.create(secret);
-  return { secret, token };
-};
-
-export default { csrfProtection, csrfErrorHandler, generateCsrfToken };
+export default { csrfProtection, csrfErrorHandler };

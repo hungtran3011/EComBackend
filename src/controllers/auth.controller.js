@@ -99,12 +99,39 @@ import mailService from '../services/mail.service.js';
  */
 const registerUser = async (req, res) => {
   try {
+    // Debug the request body
+    console.log('Register request body:', JSON.stringify(req.body));
+    
+    // Validate required fields before passing to service
+    const { name, email, phoneNumber, password } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ 
+        message: "Tên là trường bắt buộc",
+        field: "name"
+      });
+    }
+    
+    if (!email && !phoneNumber) {
+      return res.status(400).json({ 
+        message: "Email hoặc số điện thoại là bắt buộc",
+        field: "email/phoneNumber"
+      });
+    }
+    
+    if (!password) {
+      return res.status(400).json({ 
+        message: "Mật khẩu là trường bắt buộc",
+        field: "password"
+      });
+    }
+    
     const { user, accessToken, refreshToken, cookieConfig } = await AuthService.registerUser(req.body);
     
     // Thiết lập refreshToken làm HTTP-only cookie
     res.cookie('refreshToken', refreshToken, cookieConfig);
     
-    // Gửi email chào mừng (thêm điều này)
+    // Gửi email chào mừng
     try {
       await mailService.sendWelcomeEmail(user.email, user.name);
     } catch (mailError) {
@@ -115,7 +142,30 @@ const registerUser = async (req, res) => {
     // Chỉ trả về accessToken và thông tin user
     res.status(201).json({ user, accessToken });
   } catch (e) {
-    res.status(e.status || 500).json({ message: e.message });
+    console.error('Register error:', e);
+    
+    // Provide clear error message for Zod validation failures
+    if (e.message && e.message.includes('invalid_type')) {
+      try {
+        const validationErrors = JSON.parse(e.message);
+        const fieldErrors = validationErrors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }));
+        
+        return res.status(400).json({ 
+          message: "Dữ liệu không hợp lệ",
+          errors: fieldErrors
+        });
+      } catch (parseError) {
+        // If parsing fails, fallback to original error
+      }
+    }
+    
+    // Use status from error if available, otherwise default to 500
+    res.status(e.status || 500).json({ 
+      message: e.message || "Đã xảy ra lỗi khi đăng ký"
+    });
   }
 };
 
@@ -304,6 +354,9 @@ const handleRefreshToken = async (req, res) => {
  *           type: string
  *         required: true
  *         description: ID người dùng của bạn
+ *     security:
+ *        - bearerAuth: []
+ *        - csrfToken: []
  *     responses:
  *       200:
  *         description: Đăng xuất thành công! Hẹn gặp lại bạn sớm nhé!
@@ -587,6 +640,10 @@ const resetPassword = async (req, res) => {
  *       Đây là lựa chọn an toàn khi bạn không muốn sử dụng mật khẩu hoặc đang sử dụng thiết bị không đáng tin cậy.
  *       OTP có hiệu lực trong 10 phút và chỉ sử dụng được một lần.
  *     tags: [Auth]
+ *     parameters:
+ *        - in: header
+ *          name: X-CSRF-Token
+ *          required: true
  *     requestBody:
  *       required: true
  *       content:

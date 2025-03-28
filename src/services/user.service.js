@@ -1,4 +1,5 @@
 import { User } from "../schemas/user.schema.js";
+import { OtpEmailValidationSchema, OtpPhoneNumberValidationSchema } from "../validators/otp.validator.js";
 import { UserValidationSchema } from "../validators/user.validator.js";
 import mongoose from "mongoose";
 
@@ -16,15 +17,12 @@ const findUserByEmailOrPhone = async (email, phoneNumber) => {
   }
 
   const query = { isRegistered: true };
-
-  const { validEmail, validPhone } = UserValidationSchema.parse({ 
-    email: email, 
-    phoneNumber: phoneNumber
-  });
   
   if (email) {
+    const validEmail = OtpEmailValidationSchema.parse(email)
     query.email = validEmail;
   } else if (phoneNumber) {
+    const validPhone = OtpPhoneNumberValidationSchema.parse(phoneNumber)
     query.phoneNumber = validPhone;
   }
   

@@ -89,19 +89,71 @@ router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
 })
 
 /**
+ * @swagger
+ * /auth/csrf-token:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Get a new CSRF token
+ *     description: Route to get a new CSRF token. The token should be sent in the `X-CSRF-Token` header for subsequent requests.
+ *     security:
+ *        - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Success response with CSRF token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 csrfToken:
+ *                   type: string
+ *             example:
+ *               csrfToken: "example-csrf-token"
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               message: "Unauthorized"
+ *       403:
+ *         description: Forbidden
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               message: "Forbidden"
+ */
+/**
  * GET /auth/csrf-token
  * @summary Get a new CSRF token
  * @tags Authentication
- * @description Route to get a new CSRF token
+ * @description Route to get a new CSRF token. The token should be sent in the `X-CSRF-Token` header for subsequent requests.
  * @response 200 - Success response with CSRF token
  * @responseContent {object} 200.application/json
- * @responseExample {json} 200 - Example response:
- *   {
- *     "csrfToken": "example-csrf-token"
- *   }
  */
 router.get("/csrf-token", (req, res) => {
-  res.json({ csrfToken: req.cookies['csrf-token'] });
+  // Get token from cookie (set by middleware)
+  const csrfToken = req.cookies['csrf-token'];
+  
+  if (csrfToken) {
+    // Return existing token
+    return res.json({ csrfToken });
+  }
+  
+  // If no token exists yet, we need to trigger token creation
+  // by running through the csrfProtection middleware again
+  else res.json({ 
+    csrfToken: req.cookies['csrf-token'] || 'Token will be set in cookie. Check your cookies.' 
+  });
 });
 
 export {router as AuthRouter}

@@ -1,16 +1,16 @@
-// import { Router } from "express";
-// import { adminMiddleware } from "../middleware/admin.middleware.js";
-// import { IPRateLimiter } from "../config/rate-limit.js";
-// import AuthControllers from "../controllers/auth.controller.js";
-// import AdminControllers from "../controllers/admin.controller.js";
+import { Router } from "express";
+import { adminMiddleware } from "../middleware/admin.middleware.js";
+import { IPRateLimiter } from "../config/rate-limit.js";
+import AuthControllers from "../controllers/auth.controller.js";
+import AdminControllers from "../controllers/admin.controller.js";
 
-// const router = Router();
+const router = Router();
 
-// // Admin authentication - use strict rate limiting
-// const adminRateLimiter = IPRateLimiter(5, 15); // 5 requests per 15 minutes
+// Admin authentication - use strict rate limiting
+const adminRateLimiter = IPRateLimiter(5, 15); // 5 requests per 15 minutes
 
-// // // Admin login endpoint
-// // router.post("/sign-in", adminRateLimiter, AuthControllers.adminSignIn);
+// Admin login endpoint
+router.post("/sign-in", adminRateLimiter, AuthControllers.adminSignIn);
 
 // // // Apply admin middleware to all protected routes
 // // router.use(adminMiddleware);

@@ -5,7 +5,7 @@ import mailService from './mail.service.js';
 import { config } from 'dotenv';
 import {
   OtpEmailValidationSchema,
-  OtpPhoneValidationSchema
+  OtpPhoneNumberValidationSchema
 } from '../validators/otp.validator.js';
 
 config();
@@ -168,7 +168,7 @@ const sendLoginOTP = async (credentials) => {
   }
   try {
     const validEmail = OtpEmailValidationSchema.parse(email);
-    const validPhone = OtpPhoneValidationSchema.parse(phoneNumber);
+    const validPhone = OtpPhoneNumberValidationSchema.parse(phoneNumber);
     // Tìm người dùng dựa trên email hoặc số điện thoại
     const user = await User.findOne({
       $or: [

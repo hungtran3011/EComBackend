@@ -3,7 +3,6 @@ import { config } from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 import morgan from "morgan";
-import helmet from "helmet";
 import fs from 'fs';
 import path from "path";
 import { fileURLToPath } from 'url';
@@ -15,7 +14,6 @@ import { MainRouter } from "./routes/index.js";
 import swaggerDocs from "./swagger.js";
 import { securityMiddleware } from "./middleware/security.middleware.js";
 import redisService from './services/redis.service.js';
-import { csrfErrorHandler, csrfProtection } from "./middleware/csrf.middleware.js";
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -48,15 +46,19 @@ mongoose.connect(queryString, {
   console.error(error);
 })
 
-// FIX: Call securityMiddleware directly instead of using its return value
-securityMiddleware(app); // Apply security middleware
+// Fix the middleware order - make sure these are in correct sequence:
 
-// Body parsers
+// Security middleware
+securityMiddleware(app);
+
+// Body parsers first
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Cookie and session handling (needed for CSRF)
+// Cookie parser next
 app.use(cookieParser());
+
+// Session middleware before CSRF
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -64,13 +66,17 @@ app.use(session({
   cookie: { 
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    sameSite: 'lax'
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
-app.use(csrfProtection());
 
-// CSRF error handler (global)
-app.use(csrfErrorHandler);
+// Now CSRF protection can be applied
+// NOTE: Don't apply globally here, apply to specific routes instead
+// app.use(csrfProtection());
+// app.use(csrfErrorHandler);
+
+// Then other middleware and routes
 
 app.use(morgan('dev', {
   skip: function (req, res) { return res.statusCode < 400 }
