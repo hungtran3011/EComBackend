@@ -130,7 +130,8 @@ const registerUser = async (req, res) => {
 
     if (!validatePassword(password)) {
       return res.status(400).json({
-
+        message: "Mật khẩu không hợp lệ",
+        field: "password"
       })
     }
     
