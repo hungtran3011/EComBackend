@@ -91,12 +91,12 @@ export const csrfErrorHandler = (err, req, res, next) => {
 };
 
 // Add this function back to exports in csrf.middleware.js
-export const generateCsrfToken = (req) => {
+export const generateCsrfToken = async (req) => {
   if (!req.session) {
     throw new Error('Session middleware required');
   }
   
-  const secret = tokens.secret();
+  const secret = await tokens.secret();
   req.session.csrfSecret = secret;
   return tokens.create(secret);
 };
