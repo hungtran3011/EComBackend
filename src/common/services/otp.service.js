@@ -167,18 +167,12 @@ const sendLoginOTP = async (credentials) => {
     throw new Error('Email hoặc số điện thoại là bắt buộc');
   }
   try {
-    let validEmail = null;
-    let validPhone = null;
-    if (email) {
-      // Kiểm tra định dạng email
-      validEmail = OtpEmailValidationSchema.parse(email);
-    }
-    else {
-      validPhone = OtpPhoneNumberValidationSchema.parse(phoneNumber);
-    }
-
-    if (!validEmail && !validPhone) throw new Error('Email hoặc số điện thoại không hợp lệ')
+    const validEmail = email ? OtpEmailValidationSchema.parse(email) : null;
+    const validPhone = !email ? OtpPhoneNumberValidationSchema.parse(phoneNumber) : null;
     
+    if (!validEmail && !validPhone) {
+      throw new Error('Email hoặc số điện thoại không hợp lệ');
+    }
     // Tìm người dùng dựa trên email hoặc số điện thoại
     const user = await User.findOne({
       $or: [
