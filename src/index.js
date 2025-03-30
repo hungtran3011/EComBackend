@@ -55,8 +55,8 @@ securityMiddleware(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Cookie parser next
-app.use(cookieParser());
+// // Cookie parser next
+// app.use(cookieParser());
 
 // Session middleware before CSRF
 app.use(session({
@@ -70,13 +70,6 @@ app.use(session({
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
-
-// Now CSRF protection can be applied
-// NOTE: Don't apply globally here, apply to specific routes instead
-// app.use(csrfProtection());
-// app.use(csrfErrorHandler);
-
-// Then other middleware and routes
 
 app.use(morgan('dev', {
   skip: function (req, res) { return res.statusCode < 400 }
