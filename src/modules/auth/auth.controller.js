@@ -659,6 +659,9 @@ const resetPassword = async (req, res) => {
  *        - in: header
  *          name: X-CSRF-Token
  *          required: true
+ *          description: CSRF token for preventing cross-site request forgery
+ *          schema:
+ *            type: string
  *     requestBody:
  *       required: true
  *       content:
