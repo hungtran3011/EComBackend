@@ -97,8 +97,12 @@ import { validatePassword } from "../../common/validators/password.validator.js"
  */
 const registerUser = async (req, res) => {
   try {
-    // Debug the request body
-    console.log('Register request body:', JSON.stringify(req.body));
+    // Debug the request body only in development environment
+    if (process.env.NODE_ENV === 'development') {
+      // Remove sensitive data before logging
+      const sanitizedBody = { ...req.body, password: '[REDACTED]' };
+      console.log('Register request body:', JSON.stringify(sanitizedBody));
+    }
     
     // Validate required fields before passing to service
     const { name, email, phoneNumber, password } = req.body;
