@@ -90,4 +90,15 @@ export const csrfErrorHandler = (err, req, res, next) => {
   next(err);
 };
 
-export default { csrfProtection, csrfErrorHandler };
+// Add this function back to exports in csrf.middleware.js
+export const generateCsrfToken = (req) => {
+  if (!req.session) {
+    throw new Error('Session middleware required');
+  }
+  
+  const secret = tokens.secret();
+  req.session.csrfSecret = secret;
+  return tokens.create(secret);
+};
+
+// Then update exports

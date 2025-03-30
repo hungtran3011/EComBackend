@@ -3,7 +3,7 @@ import AuthControllers from "./auth.controller.js"
 import { Router } from "express"
 import { userMiddleware, adminMiddleware } from "../user/user.middleware.js"
 import cookieParser from "cookie-parser";
-import csrfProtection from "../../common/middlewares/csrf.middleware.js"
+import {csrfProtection} from "../../common/middlewares/csrf.middleware.js"
 
 /**
  * @name router
@@ -141,7 +141,7 @@ router.get("/check-auth", csrfProtection(), IPRateLimiter, userMiddleware, (req,
  * @response 200 - Success response with CSRF token
  * @responseContent {object} 200.application/json
  */
-router.get("/csrf-token", (req, res) => {
+router.get("/csrf-token", csrfProtection(), (req, res) => {
   // Get token from cookie (set by middleware)
   const csrfToken = req.cookies['csrf-token'];
   

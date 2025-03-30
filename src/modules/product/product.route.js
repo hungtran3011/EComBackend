@@ -2,7 +2,7 @@ import { Router } from "express";
 import { userMiddleware } from "../user/user.middleware.js";
 import ProductControllers from "./product.controller.js";
 import { IPRateLimiter } from "../../common/config/rate-limit.js";
-import { cacheMiddleware } from "../../common/middleware/cache.middleware.js";
+import { cacheMiddleware } from "../../common/middlewares/cache.middleware.js";
 
 const router = Router();
 
