@@ -27,7 +27,7 @@ class CloudinaryService {
       const result = await cloudinary.uploader.destroy(publicId);
       return result;
     } catch (error) {
-      throw new Error(`Image deletion failed: ${error.message}`);
+      throw new Error(`Media deletion failed: ${error.message}`);
     }
   }
 
