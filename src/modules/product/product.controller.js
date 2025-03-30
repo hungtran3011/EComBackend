@@ -9,7 +9,7 @@ import {
   createCategoryService,
   updateCategoryService,
   deleteCategoryService,
-} from "../services/product.service.js";
+} from "./product.service.js";
 
 /**
  * @swagger

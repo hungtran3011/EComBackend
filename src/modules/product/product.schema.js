@@ -105,6 +105,10 @@ export const ProductSchema = mongoose.Schema({
     ref: 'Category', 
     required: true 
   },
+  productImages: { // Fix typo: image -> images
+    type: [String], // Changed to array of strings for multiple images
+    required: false,
+  },
   fieldValues: [ProductFieldValueSchema], // Replace fields with fieldValues
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, {timestamps: true}) // Fix typo: timestamp -> timestamps

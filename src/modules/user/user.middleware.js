@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken"
 import { config } from "dotenv"
-import tokenService from "../services/token.service.js"
+import tokenService from "../../common/services/token.service.js"
 import cookieParser from "cookie-parser"
 
 config()

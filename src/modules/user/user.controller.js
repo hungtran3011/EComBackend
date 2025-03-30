@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { UserService } from "../services/user.service.js";
+import { UserService } from "./user.service.js";
 
 config();
 

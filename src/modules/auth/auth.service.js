@@ -1,9 +1,9 @@
-import { User } from "../schemas/user.schema.js";
+import { User } from "../user/user.schema.js";
 import bcrypt from "bcrypt";
-import tokenService from "./token.service.js";
-import { UserService } from "./user.service.js";
-import OTPService from "./otp.service.js";
-import { OtpPhoneNumberValidationSchema, OtpEmailValidationSchema } from "../validators/otp.validator.js";
+import tokenService from "../../common/services/token.service.js";
+import { UserService } from "../user/user.service.js";
+import OTPService from "../../common/services/otp.service.js";
+import { OtpPhoneNumberValidationSchema, OtpEmailValidationSchema } from "../../common/validators/otp.validator.js";
 
 // Cấu hình cookie
 const COOKIE_CONFIG = {

@@ -22,12 +22,24 @@ class CloudinaryService {
     }
   }
 
-  async deleteImage(publicId) {
+  async deleteImageOrVideo(publicId) {
     try {
       const result = await cloudinary.uploader.destroy(publicId);
       return result;
     } catch (error) {
       throw new Error(`Image deletion failed: ${error.message}`);
+    }
+  }
+
+  async uploadVideo(filePath, folder) {
+    try {
+      const result = await cloudinary.uploader.upload(filePath, {
+        resource_type: "video",
+        folder: folder,
+      });
+      return result;
+    } catch (error) {
+      throw new Error(`Video upload failed: ${error.message}`);
     }
   }
 }

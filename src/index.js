@@ -9,11 +9,11 @@ import { fileURLToPath } from 'url';
 import cookieParser from "cookie-parser";
 import session from "express-session";
 
-import { corsOptions } from "./config/cors.config.js";
-import { MainRouter } from "./routes/index.js";
+import { corsOptions } from "./common/config/cors.config.js";
+import { MainRouter } from "./api/routes.js";
 import swaggerDocs from "./swagger.js";
-import { securityMiddleware } from "./middleware/security.middleware.js";
-import redisService from './services/redis.service.js';
+import { securityMiddleware } from "./common/middleware/security.middleware.js";
+import redisService from './common/services/redis.service.js';
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);

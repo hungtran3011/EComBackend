@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { User } from '../schemas/user.schema.js';
+import { User } from '../../modules/user/user.schema.js';
 import redisService from './redis.service.js';
 import mailService from './mail.service.js';
 import { config } from 'dotenv';

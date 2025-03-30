@@ -1,13 +1,13 @@
-import { Product, Category } from "../schemas/product.schema.js";
+import { Product, Category } from "./product.schema.js";
 import { 
   ProductValidationSchema, 
   ProductListValidationSchema, 
   CategoryValidationSchema, 
   CategoriesValidationSchema,
-  validateFieldType 
-} from "../validators/product.validator.js";
-import { isValidMongoId } from "../validators/product.validator.js";
-import redisService from './redis.service.js';
+  validateFieldType,
+  isValidMongoId,
+} from "../../common/validators/product.validator.js";
+import redisService from '../../common/services/redis.service.js';
 
 /**
  * @name getAllProductsService

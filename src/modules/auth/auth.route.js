@@ -1,7 +1,7 @@
-import { IPRateLimiter } from "../config/rate-limit.js"
-import AuthControllers from "../controllers/auth.controller.js"
+import { IPRateLimiter } from "../../common/config/rate-limit.js"
+import AuthControllers from "./auth.controller.js"
 import { Router } from "express"
-import { userMiddleware, adminMiddleware } from "../middleware/user.middleware.js"
+import { userMiddleware, adminMiddleware } from "../user/user.middleware.js"
 import cookieParser from "cookie-parser";
 
 /**

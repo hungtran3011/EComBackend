@@ -1,9 +1,7 @@
-import AuthService from "../services/auth.service.js";
-import jwt from "jsonwebtoken";
-import otpService from '../services/otp.service.js';
-import {UserService} from '../services/user.service.js';
-import authService from '../services/auth.service.js';
-import mailService from '../services/mail.service.js';
+import AuthService from "./auth.service.js";
+import otpService from '../../common/services/otp.service.js';
+import mailService from '../../common/services/mail.service.js';
+import { validatePassword } from "../../common/validators/password.validator.js";
 
 /**
  * @swagger
@@ -124,6 +122,12 @@ const registerUser = async (req, res) => {
         message: "Mật khẩu là trường bắt buộc",
         field: "password"
       });
+    }
+
+    if (!validatePassword(password)) {
+      return res.status(400).json({
+
+      })
     }
     
     const { user, accessToken, refreshToken, cookieConfig } = await AuthService.registerUser(req.body);
@@ -610,9 +614,10 @@ const resetPassword = async (req, res) => {
     }
     
     // Kiểm tra mật khẩu hợp lệ
-    if (newPassword.length < 6) {
+    if (validatePassword(newPassword)) {
       return res.status(400).json({
-        message: "Mật khẩu phải có ít nhất 6 ký tự"
+        message: "Mật khẩu không hợp lệ",
+        field: "newPassword"
       });
     }
     

@@ -1,10 +1,10 @@
-import { UserRouter } from "./user.route.js";
-import { ProductRouter } from "./product.route.js";
-import { OrderRouter } from "./order.route.js";
-import { CartRouter } from "./cart.route.js";
+import { UserRouter } from "../modules/user/user.route.js";
+import { ProductRouter } from "../modules/product/product.route.js";
+import { OrderRouter } from "../modules/order/order.route.js";
+import { CartRouter } from "../modules/cart/cart.route.js";
 import { Router } from "express";
-import { AuthRouter } from "./auth.route.js";
-import { UploadRouter } from "./upload.route.js";
+import { AuthRouter } from "../modules/auth/auth.route.js";
+import { UploadRouter } from "../modules/upload/upload.route.js";
 // import { AdminRouter } from "./admin.route.js";
 
 const router = Router()

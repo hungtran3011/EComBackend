@@ -1,6 +1,6 @@
-import { User } from "../schemas/user.schema.js";
-import { OtpEmailValidationSchema, OtpPhoneNumberValidationSchema } from "../validators/otp.validator.js";
-import { UserValidationSchema } from "../validators/user.validator.js";
+import { User } from "./user.schema.js";
+import { OtpEmailValidationSchema, OtpPhoneNumberValidationSchema } from "../../common/validators/otp.validator.js";
+import { UserValidationSchema } from "../../common/validators/user.validator.js";
 import mongoose from "mongoose";
 
 /**
