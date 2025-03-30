@@ -3,6 +3,7 @@ import AuthControllers from "./auth.controller.js"
 import { Router } from "express"
 import { userMiddleware, adminMiddleware } from "../user/user.middleware.js"
 import cookieParser from "cookie-parser";
+import session from "express-session";
 import {csrfProtection} from "../../common/middlewares/csrf.middleware.js"
 
 /**
@@ -14,72 +15,84 @@ const router = Router()
 
 // Sử dụng cookie-parser để đọc cookies
 router.use(cookieParser());
+router.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}))
+router.use(csrfProtection());
 
 /**
  * POST /auth/sign-in
  * @description Route for user login with email/phone and password
  */
-router.post("/sign-in", csrfProtection(), IPRateLimiter, AuthControllers.signIn)
+router.post("/sign-in", IPRateLimiter, AuthControllers.signIn)
 
 /**
  * POST /auth/sign-up
  * @description Route for user registration
  */
-router.post("/sign-up", csrfProtection(), IPRateLimiter, AuthControllers.registerUser)
+router.post("/sign-up", IPRateLimiter, AuthControllers.registerUser)
 
 /**
  * POST /auth/sign-out
  * @description Route for user logout
  */
-router.post("/sign-out", csrfProtection(), userMiddleware, AuthControllers.handleLogout)
+router.post("/sign-out", userMiddleware, AuthControllers.handleLogout)
 
 /**
  * POST /auth/refresh-token
  * @description Route to refresh access token using refresh token cookie
  */
-router.post("/refresh-token", csrfProtection(), IPRateLimiter, AuthControllers.handleRefreshToken)
+router.post("/refresh-token", IPRateLimiter, AuthControllers.handleRefreshToken)
 
 /**
  * POST /auth/send-otp
  * @description Route to send OTP for login
  */
-router.post("/send-otp", csrfProtection(), IPRateLimiter, AuthControllers.sendLoginOTP)
+router.post("/send-otp", IPRateLimiter, AuthControllers.sendLoginOTP)
 
 /**
  * POST /auth/sign-in-otp
  * @description Route for user login with OTP
  */
-router.post("/sign-in-otp", csrfProtection(), IPRateLimiter, AuthControllers.signInWithOTP)
+router.post("/sign-in-otp", IPRateLimiter, AuthControllers.signInWithOTP)
 
 /**
  * POST /auth/admin/sign-in
  * @description Route for administrator login (restricted)
  */
-router.post("/admin/sign-in", csrfProtection(), IPRateLimiter, AuthControllers.adminSignIn)
+router.post("/admin/sign-in", IPRateLimiter, AuthControllers.adminSignIn)
 
 /**
  * POST /auth/admin-sign-out
  * @description Route for admin logout
  */
-router.post("/admin-sign-out", csrfProtection(), adminMiddleware, AuthControllers.handleLogout)
+router.post("/admin-sign-out", adminMiddleware, AuthControllers.handleLogout)
 
 /**
  * POST /auth/send-password-reset-otp
  * @description Route to send OTP for password reset
  */
-router.post("/send-password-reset-otp", csrfProtection(), IPRateLimiter, AuthControllers.sendPasswordResetOTP)
+router.post("/send-password-reset-otp", IPRateLimiter, AuthControllers.sendPasswordResetOTP)
 
 /**
  * POST /auth/reset-password
  * @description Route to reset password using OTP
  */
-router.post("/reset-password", csrfProtection(), IPRateLimiter, AuthControllers.resetPassword)
+router.post("/reset-password", IPRateLimiter, AuthControllers.resetPassword)
 
 /**
  * GET /auth/check-auth
  * @description Route to check if user is authenticated
  */
-router.get("/check-auth", csrfProtection(), IPRateLimiter, userMiddleware, (req, res) => {
+router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
   res.status(200).json({
     authenticated: true,
     user: {
@@ -141,20 +154,35 @@ router.get("/check-auth", csrfProtection(), IPRateLimiter, userMiddleware, (req,
  * @response 200 - Success response with CSRF token
  * @responseContent {object} 200.application/json
  */
-router.get("/csrf-token", csrfProtection(), (req, res) => {
-  // Get token from cookie (set by middleware)
-  const csrfToken = req.cookies['csrf-token'];
-  
-  if (csrfToken) {
-    // Return existing token
+router.get("/csrf-token", async (req, res) => {
+  try {
+    // Check for existing token
+    let csrfToken = req.cookies['csrf-token'];
+    
+    // If no token exists, generate a new one
+    if (!csrfToken) {
+      const { generateCsrfToken } = await import('../../common/middlewares/csrf.middleware.js');
+      csrfToken = await generateCsrfToken(req);
+      
+      // Set the cookie with the same options as in middleware
+      res.cookie('csrf-token', csrfToken, {
+        path: '/',
+        httpOnly: false,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 3600 * 24 // 24 hours
+      });
+    }
+    
+    // Return the token
     return res.json({ csrfToken });
+  } catch (error) {
+    console.error('CSRF token generation error:', error);
+    return res.status(500).json({ 
+      message: 'Error generating CSRF token',
+      error: process.env.NODE_ENV === 'production' ? undefined : error.message
+    });
   }
-  
-  // If no token exists yet, we need to trigger token creation
-  // by running through the csrfProtection middleware again
-  else res.json({ 
-    csrfToken: req.cookies['csrf-token'] || 'Token will be set in cookie. Check your cookies.' 
-  });
 });
 
 export {router as AuthRouter}

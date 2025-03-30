@@ -291,7 +291,7 @@ const deleteProduct = async (req, res) => {
  *       Giống như bảng chỉ dẫn các khu vực trong siêu thị vậy!
  *       Giúp khách hàng dễ dàng định hướng và tìm kiếm sản phẩm theo nhóm
  *       mà không cần phải lướt qua tất cả các sản phẩm.
- *     tags: [Products]
+ *     tags: [Categories]
  *     responses:
  *       200:
  *         description: Danh sách các danh mục sản phẩm đã được trả về thành công!
@@ -329,7 +329,7 @@ const getAllCategories = async (req, res) => {
  *       Cung cấp thông tin chi tiết về một danh mục cụ thể dựa trên ID.
  *       Giống như khi bạn đọc bảng chỉ dẫn chi tiết cho một khu vực trong siêu thị vậy!
  *       Bạn sẽ biết được mọi thông tin về danh mục - từ tên, mô tả, đến các trường dữ liệu đặc trưng.
- *     tags: [Products]
+ *     tags: [Categories]
  *     parameters:
  *       - in: path
  *         name: id
@@ -379,7 +379,7 @@ const getCategoryById = async (req, res) => {
  *       Giống như khi bạn tạo ra một khu vực mới trong siêu thị vậy!
  *       Bạn có thể định nghĩa các trường thông tin đặc trưng cho danh mục,
  *       giúp việc quản lý và hiển thị sản phẩm trở nên linh hoạt hơn.
- *     tags: [Products]
+ *     tags: [Categories]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -461,7 +461,7 @@ const createCategory = async (req, res) => {
  *       Giống như khi bạn cải tạo lại một khu vực trong siêu thị vậy!
  *       Bạn có thể thay đổi tên, mô tả hoặc các trường dữ liệu đặc trưng của danh mục.
  *       Chỉ người dùng đã đăng nhập mới có thể thực hiện thao tác này.
- *     tags: [Products]
+ *     tags: [Categories]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -548,7 +548,7 @@ const updateCategory = async (req, res) => {
  *       Giống như khi bạn loại bỏ hoàn toàn một khu vực trong siêu thị vậy!
  *       Lưu ý: Chức năng này có thể ảnh hưởng đến các sản phẩm thuộc danh mục bị xóa.
  *       Chỉ người dùng đã đăng nhập mới có thể thực hiện thao tác này.
- *     tags: [Products]
+ *     tags: [Categories]
  *     security:
  *       - bearerAuth: []
  *     parameters:

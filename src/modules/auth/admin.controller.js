@@ -3,7 +3,7 @@ import AuthService from '../services/auth.service.js';
 
 /**
  * @swagger
- * /admin/logs:
+ * /api/admin/logs:
  *   get:
  *     summary: Lấy nhật ký hoạt động admin
  *     description: Truy xuất nhật ký hành động của admin với phân trang và tùy chọn lọc

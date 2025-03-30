@@ -4,7 +4,7 @@ import { config } from 'dotenv';
 config();
 
 const tokens = new Tokens();
-const SECRET = process.env.CSRF_SECRET || 'your-csrf-secret-key-change-this';
+const SECRET = process.env.CSRF_SECRET;
 
 /**
  * @name csrfProtection

@@ -11,7 +11,7 @@ import session from "express-session";
 
 import { corsOptions } from "./common/config/cors.config.js";
 import { MainRouter } from "./api/routes.js";
-import swaggerDocs from "./swagger.js";
+import swaggerDocs from "../swagger.js";
 import { securityMiddleware } from "./common/middlewares/security.middleware.js";
 import redisService from './common/services/redis.service.js';
 import { csrfProtection } from "./common/middlewares/csrf.middleware.js";
@@ -59,20 +59,20 @@ app.use(express.urlencoded({ extended: true }));
 // // Cookie parser next
 // app.use(cookieParser());
 
-// Session middleware before CSRF
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
+// // Session middleware before CSRF
+// app.use(session({
+//   secret: process.env.SESSION_SECRET,
+//   resave: false,
+//   saveUninitialized: false,
+//   cookie: { 
+//     secure: process.env.NODE_ENV === 'production',
+//     httpOnly: true,
+//     sameSite: 'lax',
+//     maxAge: 24 * 60 * 60 * 1000 // 24 hours
+//   }
+// }));
 
-app.use(csrfProtection())
+// app.use(csrfProtection())
 
 app.use(morgan('dev', {
   skip: function (req, res) { return res.statusCode < 400 }
@@ -87,7 +87,7 @@ app.use(morgan("combined", {
 
 app.use(cors(corsOptions));
 
-app.get("/", (req, res) => {
+app.get("/health-check", (req, res) => {
   res.json({ message: "Server is healthy" });
 })
 

@@ -5,7 +5,7 @@ config();
 
 /**
  * @swagger
- * /user:
+ * /api/user:
  *   get:
  *     summary: Lấy danh sách tất cả người dùng
  *     description: >
