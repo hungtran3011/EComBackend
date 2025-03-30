@@ -100,10 +100,15 @@ const registerUser = async (req, res) => {
     // Debug the request body only in development environment
     if (process.env.NODE_ENV === 'development') {
       // Remove sensitive data before logging
-      const sanitizedBody = { ...req.body, password: '[REDACTED]' };
+      const { password, phoneNumber, email, ...restBody } = req.body;
+      const sanitizedBody = {
+        ...restBody,
+        password: '[REDACTED]',
+        phoneNumber: '[REDACTED]',
+        email: '[REDACTED]',
+      };
       console.log('Register request body:', JSON.stringify(sanitizedBody));
     }
-    
     // Validate required fields before passing to service
     const { name, email, phoneNumber, password } = req.body;
     
