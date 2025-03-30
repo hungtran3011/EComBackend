@@ -27,12 +27,22 @@ class CloudinaryService {
       const result = await cloudinary.uploader.destroy(publicId);
       return result;
     } catch (error) {
-      throw new Error(`Image deletion failed: ${error.message}`);
+      throw new Error(`Media deletion failed: ${error.message}`);
     }
   }
 
+  /**
+   * Uploads a video to Cloudinary
+   * @param {string} filePath - The path to the video file
+   * @param {string} folder - The destination folder in Cloudinary
+   * @returns {Promise<Object>} The upload result containing the video details
+   * @throws {Error} If the video upload fails
+   */
   async uploadVideo(filePath, folder) {
     try {
+      if (!filePath) {
+        throw new Error('File path is required');
+      }
       const result = await cloudinary.uploader.upload(filePath, {
         resource_type: "video",
         folder: folder,

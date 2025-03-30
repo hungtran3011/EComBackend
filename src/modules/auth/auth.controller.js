@@ -97,9 +97,18 @@ import { validatePassword } from "../../common/validators/password.validator.js"
  */
 const registerUser = async (req, res) => {
   try {
-    // Debug the request body
-    console.log('Register request body:', JSON.stringify(req.body));
-    
+    // Debug the request body only in development environment
+    if (process.env.NODE_ENV === 'development') {
+      // Remove sensitive data before logging
+      const { password, phoneNumber, email, ...restBody } = req.body;
+      const sanitizedBody = {
+        ...restBody,
+        password: '[REDACTED]',
+        phoneNumber: '[REDACTED]',
+        email: '[REDACTED]',
+      };
+      console.log('Register request body:', JSON.stringify(sanitizedBody));
+    }
     // Validate required fields before passing to service
     const { name, email, phoneNumber, password } = req.body;
     
@@ -126,7 +135,8 @@ const registerUser = async (req, res) => {
 
     if (!validatePassword(password)) {
       return res.status(400).json({
-
+        message: "Mật khẩu không hợp lệ",
+        field: "password"
       })
     }
     
@@ -649,6 +659,9 @@ const resetPassword = async (req, res) => {
  *        - in: header
  *          name: X-CSRF-Token
  *          required: true
+ *          description: CSRF token for preventing cross-site request forgery
+ *          schema:
+ *            type: string
  *     requestBody:
  *       required: true
  *       content:
