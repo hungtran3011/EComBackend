@@ -32,8 +32,17 @@ class CloudinaryService {
     }
   }
 
+  /**
+   * Deletes an image or video from Cloudinary
+   * @param {string} publicId - The public ID of the resource to delete
+   * @returns {Promise<Object>} The deletion result
+   * @throws {Error} If the media deletion fails
+   */
   async deleteImageOrVideo(publicId) {
     try {
+      if (!publicId) {
+        throw new Error('Public ID is required');
+      }
       const result = await cloudinary.uploader.destroy(publicId);
       return result;
     } catch (error) {
