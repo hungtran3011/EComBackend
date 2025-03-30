@@ -11,8 +11,18 @@ cloudinary.config({
 });
 
 class CloudinaryService {
+  /**
+   * Uploads an image to Cloudinary
+   * @param {string} filePath - The path to the image file
+   * @param {string} folder - The destination folder in Cloudinary
+   * @returns {Promise<Object>} The upload result containing the image details
+   * @throws {Error} If the image upload fails
+   */
   async uploadImage(filePath, folder) {
     try {
+      if (!filePath) {
+        throw new Error('File path is required');
+      }
       const result = await cloudinary.uploader.upload(filePath, {
         folder: folder,
       });
