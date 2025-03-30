@@ -3,6 +3,7 @@ import AuthControllers from "./auth.controller.js"
 import { Router } from "express"
 import { userMiddleware, adminMiddleware } from "../user/user.middleware.js"
 import cookieParser from "cookie-parser";
+import csrfProtection from "../../common/middlewares/csrf.middleware.js"
 
 /**
  * @name router
@@ -18,67 +19,67 @@ router.use(cookieParser());
  * POST /auth/sign-in
  * @description Route for user login with email/phone and password
  */
-router.post("/sign-in", IPRateLimiter, AuthControllers.signIn)
+router.post("/sign-in", csrfProtection(), IPRateLimiter, AuthControllers.signIn)
 
 /**
  * POST /auth/sign-up
  * @description Route for user registration
  */
-router.post("/sign-up", IPRateLimiter, AuthControllers.registerUser)
+router.post("/sign-up", csrfProtection(), IPRateLimiter, AuthControllers.registerUser)
 
 /**
  * POST /auth/sign-out
  * @description Route for user logout
  */
-router.post("/sign-out", userMiddleware, AuthControllers.handleLogout)
+router.post("/sign-out", csrfProtection(), userMiddleware, AuthControllers.handleLogout)
 
 /**
  * POST /auth/refresh-token
  * @description Route to refresh access token using refresh token cookie
  */
-router.post("/refresh-token", IPRateLimiter, AuthControllers.handleRefreshToken)
+router.post("/refresh-token", csrfProtection(), IPRateLimiter, AuthControllers.handleRefreshToken)
 
 /**
  * POST /auth/send-otp
  * @description Route to send OTP for login
  */
-router.post("/send-otp", IPRateLimiter, AuthControllers.sendLoginOTP)
+router.post("/send-otp", csrfProtection(), IPRateLimiter, AuthControllers.sendLoginOTP)
 
 /**
  * POST /auth/sign-in-otp
  * @description Route for user login with OTP
  */
-router.post("/sign-in-otp", IPRateLimiter, AuthControllers.signInWithOTP)
+router.post("/sign-in-otp", csrfProtection(), IPRateLimiter, AuthControllers.signInWithOTP)
 
 /**
  * POST /auth/admin/sign-in
  * @description Route for administrator login (restricted)
  */
-router.post("/admin/sign-in", IPRateLimiter, AuthControllers.adminSignIn)
+router.post("/admin/sign-in", csrfProtection(), IPRateLimiter, AuthControllers.adminSignIn)
 
 /**
  * POST /auth/admin-sign-out
  * @description Route for admin logout
  */
-router.post("/admin-sign-out", adminMiddleware, AuthControllers.handleLogout)
+router.post("/admin-sign-out", csrfProtection(), adminMiddleware, AuthControllers.handleLogout)
 
 /**
  * POST /auth/send-password-reset-otp
  * @description Route to send OTP for password reset
  */
-router.post("/send-password-reset-otp", IPRateLimiter, AuthControllers.sendPasswordResetOTP)
+router.post("/send-password-reset-otp", csrfProtection(), IPRateLimiter, AuthControllers.sendPasswordResetOTP)
 
 /**
  * POST /auth/reset-password
  * @description Route to reset password using OTP
  */
-router.post("/reset-password", IPRateLimiter, AuthControllers.resetPassword)
+router.post("/reset-password", csrfProtection(), IPRateLimiter, AuthControllers.resetPassword)
 
 /**
  * GET /auth/check-auth
  * @description Route to check if user is authenticated
  */
-router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
+router.get("/check-auth", csrfProtection(), IPRateLimiter, userMiddleware, (req, res) => {
   res.status(200).json({
     authenticated: true,
     user: {
