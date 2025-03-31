@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { User } from "../schemas/user.schema.js";
+import { User } from "../../modules/user/user.schema.js";
 
 /**
  * Middleware to verify admin authentication

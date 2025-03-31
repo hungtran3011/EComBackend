@@ -1,5 +1,5 @@
 // import auditLogger from '../services/audit-logger.service.js';
-import AuthService from '../services/auth.service.js';
+import AuthService from 'auth.service.js';
 
 /**
  * @swagger
