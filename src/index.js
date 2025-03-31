@@ -3,19 +3,18 @@ import { config } from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
 import morgan from "morgan";
-import helmet from "helmet";
 import fs from 'fs';
 import path from "path";
 import { fileURLToPath } from 'url';
 import cookieParser from "cookie-parser";
 import session from "express-session";
 
-import { corsOptions } from "./config/cors.config.js";
-import { MainRouter } from "./routes/index.js";
-import swaggerDocs from "./swagger.js";
-import { securityMiddleware } from "./middleware/security.middleware.js";
-import redisService from './services/redis.service.js';
-import { csrfErrorHandler, csrfProtection } from "./middleware/csrf.middleware.js";
+import { corsOptions } from "./common/config/cors.config.js";
+import { MainRouter } from "./api/routes.js";
+import swaggerDocs from "../swagger.js";
+import { securityMiddleware } from "./common/middlewares/security.middleware.js";
+import redisService from './common/services/redis.service.js';
+import { csrfProtection } from "./common/middlewares/csrf.middleware.js";
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -48,29 +47,32 @@ mongoose.connect(queryString, {
   console.error(error);
 })
 
-// FIX: Call securityMiddleware directly instead of using its return value
-securityMiddleware(app); // Apply security middleware
+// Fix the middleware order - make sure these are in correct sequence:
 
-// Body parsers
+// Security middleware
+securityMiddleware(app);
+
+// Body parsers first
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Cookie and session handling (needed for CSRF)
-app.use(cookieParser());
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'lax'
-  }
-}));
-app.use(csrfProtection());
+// // Cookie parser next
+// app.use(cookieParser());
 
-// CSRF error handler (global)
-app.use(csrfErrorHandler);
+// // Session middleware before CSRF
+// app.use(session({
+//   secret: process.env.SESSION_SECRET,
+//   resave: false,
+//   saveUninitialized: false,
+//   cookie: { 
+//     secure: process.env.NODE_ENV === 'production',
+//     httpOnly: true,
+//     sameSite: 'lax',
+//     maxAge: 24 * 60 * 60 * 1000 // 24 hours
+//   }
+// }));
+
+// app.use(csrfProtection())
 
 app.use(morgan('dev', {
   skip: function (req, res) { return res.statusCode < 400 }
@@ -85,7 +87,7 @@ app.use(morgan("combined", {
 
 app.use(cors(corsOptions));
 
-app.get("/", (req, res) => {
+app.get("/health-check", (req, res) => {
   res.json({ message: "Server is healthy" });
 })
 
