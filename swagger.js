@@ -37,6 +37,12 @@ const swaggerDefinition = {
         scheme: 'bearer',
         bearerFormat: 'JWT',
       },
+      csrfToken: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'csrf-token',
+        description: 'CSRF token for secure requests'
+      }
     },
     schemas: {
       Product: {
@@ -213,11 +219,12 @@ const swaggerDefinition = {
 // Options for the swagger docs
 const options = {
   swaggerDefinition,
-  // Paths to files containing OpenAPI definitions
   apis: [
-    path.join(__dirname, './src/routes/*.js'),
-    path.join(__dirname, './src/controllers/*.js'),
-    path.join(__dirname, './src/schemas/*.js'),
+    './src/modules/**/*.controller.js',
+    './src/modules/**/*.route.js',
+    './src/modules/**/*.js',
+    './src/common/**/*.js',
+    './src/config/**/*.js',
   ],
 };
 
@@ -230,13 +237,17 @@ const swaggerSpec = swaggerJSDoc(options);
  * @param {number} port - Server port number
  */
 const swaggerDocs = (app, port) => {
-  // Route for swagger docs
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  app.use('/api-docs', swaggerUi.serve);
+  app.get('/api-docs', swaggerUi.setup(swaggerSpec, {
     explorer: true,
-    customCss: '.swagger-ui .topbar { display: none }',
+    // customCss: '.swagger-ui .topbar { display: none }',
     swaggerOptions: {
       persistAuthorization: true,
+      docExpansion: 'none', // Collapse endpoints by default
+      filter: true, // Add a search field
+      tryItOutEnabled: false, // Don't enable "Try it out" by default
     },
+    // IMPORTANT: Removed any custom JS that might cause conflicts
   }));
 
   // Route to get swagger.json
