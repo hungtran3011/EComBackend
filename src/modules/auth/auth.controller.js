@@ -195,6 +195,11 @@ const registerUser = async (req, res) => {
  *       còn refresh token sẽ giúp bạn lấy access token mới khi nó hết hạn mà không cần đăng nhập lại. 
  *       Giống như có một người bạn luôn đứng sẵn ở cổng để mở cửa cho bạn vậy!
  *     tags: [Auth]
+ *     parameters:
+ *      - in: header
+ *        name: X-CSRF-TOKEN
+ *        required: true
+ *        description: CSRF token để bảo vệ chống lại các cuộc tấn công CSRF
  *     requestBody:
  *       required: true
  *       content:
@@ -297,18 +302,11 @@ const signIn = async (req, res) => {
  *       Giống như việc gia hạn vé xem phim mà không cần mua vé mới vậy! 
  *       Nhớ giữ refresh token an toàn nhé, nếu không người khác có thể mạo danh bạn đấy!
  *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - refreshToken
- *             properties:
- *               refreshToken:
- *                 type: string
- *                 description: Refresh token bạn đã nhận được khi đăng nhập
+ *     parameters:
+ *       - in: header
+ *         name: X-CSRF-TOKEN
+ *         required: true
+ *         description: CSRF token để bảo vệ chống lại các cuộc tấn công CSRF
  *     responses:
  *       200:
  *         description: Đây là access token mới của bạn! Sử dụng vui vẻ nhé!
@@ -757,6 +755,13 @@ const sendLoginOTP = async (req, res) => {
  *     tags: [Auth]
  *     requestBody:
  *       required: true
+ *       parameters:
+ *        - in: header
+ *          name: X-CSRF-Token
+ *          required: true
+ *          description: CSRF token for preventing cross-site request forgery
+ *          schema:
+ *            type: string
  *       content:
  *         application/json:
  *           schema:

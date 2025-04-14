@@ -36,16 +36,17 @@ mongoose.connect(queryString, {
   tls: true
 }).then(() => {
   console.log("Connected to MongoDB");
-  
-  // Đảm bảo Redis cũng được kết nối
-  if (!redisService.isConnected()) {
-    redisService.connect()
-      .then(() => console.log('Redis service initialized'))
-      .catch(err => console.error('Failed to initialize Redis:', err));
-  }
+
 }).catch((error) => {
   console.error(error);
 })
+
+// Đảm bảo Redis cũng được kết nối
+if (!redisService.isConnected()) {
+  redisService.connect()
+    .then(() => console.log('Redis service initialized'))
+    .catch(err => console.error('Failed to initialize Redis:', err));
+}
 
 // Fix the middleware order - make sure these are in correct sequence:
 
