@@ -1,7 +1,18 @@
 import Cart from './cart.schema.js';
 
+import { cache } from '../../common/utils/cache.js'; // Assuming a cache utility exists
+
 const getCartByUserId = async (userId) => {
-  return await Cart.findOne({ user: userId }).populate('items.product');
+  // Check cache first
+  const cachedCart = cache.get(`cart_${userId}`);
+  if (cachedCart) return cachedCart;
+  
+  const cart = await Cart.findOne({ user: userId }).populate('items.product');
+  
+  // Cache the result for 5 minutes
+  if (cart) cache.set(`cart_${userId}`, cart, 300);
+  
+  return cart;
 };
 
 const addItemToCart = async (userId, productId, quantity) => {
