@@ -245,6 +245,8 @@
  *       Điểm truy cập an toàn dành riêng cho quản trị viên. 
  *       Yêu cầu xác thực đa lớp và chỉ cho phép từ địa chỉ IP được phê duyệt.
  *     tags: [Auth]
+ *     parameters:
+ *       - $ref: '#/components/parameters/CSRFToken'
  *     requestBody:
  *       required: true
  *       content:
@@ -254,7 +256,6 @@
  *             required:
  *               - email
  *               - password
- *               - adminKey
  *             properties:
  *               email:
  *                 type: string
@@ -262,18 +263,41 @@
  *               password:
  *                 type: string
  *                 format: password
- *               adminKey:
- *                 type: string
- *                 description: Khóa bí mật mà chỉ quản trị viên biết
  *     responses:
  *       200:
  *         description: Đăng nhập quản trị viên thành công
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   description: Token để truy cập hệ thống với quyền admin
+ *                 user:
+ *                   type: object
+ *                   description: Thông tin quản trị viên đã đăng nhập
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: ID của quản trị viên
+ *                     name:
+ *                       type: string
+ *                       description: Tên của quản trị viên
+ *                     email:
+ *                       type: string
+ *                       format: email
+ *                       description: Email của quản trị viên
+ *                     role:
+ *                       type: string
+ *                       enum: [admin]
+ *                       description: Vai trò quản trị viên
  *       401:
- *         description: Không được phép truy cập
+ *         description: Thông tin đăng nhập không hợp lệ
  *       403:
- *         description: Bị cấm truy cập
+ *         description: Truy cập bị từ chối từ địa chỉ IP này
  *       500:
- *         description: Lỗi máy chủ, vui lòng thử lại sau
+ *         description: Lỗi máy chủ khi xác thực
  */
 
 /**

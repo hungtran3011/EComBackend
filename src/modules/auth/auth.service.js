@@ -217,22 +217,24 @@ const handleLogout = async (userId, accessToken, refreshToken) => {
  */
 const adminSignIn = async (credentials, headers) => {
   try {
-    const { email, password, adminKey } = credentials;
+    const { email, password } = credentials;
 
-    if (adminKey !== process.env.ADMIN_SECRET_KEY) {
-      throw { status: 401, message: "Invalid credentials" };
-    }
+    // if (adminKey !== process.env.ADMIN_SECRET_KEY) {
+    //   throw { status: 401, message: "Invalid credentials" };
+    // }
 
-    const clientIP = headers["x-forwarded-for"] || headers["socket.remoteAddress"];
-    const allowedAdminIPs = process.env.ADMIN_ALLOWED_IPS?.split(",") || [];
+    // const clientIP = headers["x-forwarded-for"] || headers["socket.remoteAddress"];
+    // const allowedAdminIPs = process.env.ADMIN_ALLOWED_IPS?.split(",") || [];
 
-    if (allowedAdminIPs.length > 0 && !allowedAdminIPs.includes(clientIP)) {
-      throw { status: 403, message: "Access denied from this location" };
-    }
+    // if (allowedAdminIPs.length > 0 && !allowedAdminIPs.includes(clientIP)) {
+    //   throw { status: 403, message: "Access denied from this location" };
+    // }
     
     const validEmail = OtpEmailValidationSchema.parse(email);
     const admin = await User.findOne({ validEmail, role: "admin" });
+    console.log("Admin:", admin);
     if (!admin) {
+      console.error("Admin not found");
       throw { status: 401, message: "Invalid credentials" };
     }
 

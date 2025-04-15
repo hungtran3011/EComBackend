@@ -185,6 +185,12 @@ const handleLogout = async (req, res) => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict'
     });
+
+    res.clearCookie('adminRefreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
     
     res.status(200).json({ message: "Đăng xuất thành công" });
   } catch (e) {
