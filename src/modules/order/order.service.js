@@ -1,19 +1,40 @@
 import { OrderModel } from "./order.schema.js";
 
 const getAllOrders = async (status) => {
-  return await OrderModel.find(status ? { status } : {});
+  const allowedStatuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
+  const query = allowedStatuses.includes(status) ? { status: { $eq: status } } : {};
+  return await OrderModel.find(query);
 };
 
 const getOrderById = async (id) => {
-  return await OrderModel.findById(id);
+  const order = await OrderModel.findById(id);
+  if (!order) {
+    throw new Error("Order not found");
+  }
+  return order;
 };
 
 const createOrder = async ({ items, shippingAddress, paymentDetails, user }) => {
+  // Validate required parameters
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    throw new Error("Order must contain at least one item");
+  }
+  if (!shippingAddress) {
+    throw new Error("Shipping address is required");
+  }
+  if (!paymentDetails) {
+    throw new Error("Payment details are required");
+  }
+  if (!user) {
+    throw new Error("User is required");
+  }
+
   const newOrder = new OrderModel({
     items,
     shippingAddress,
     paymentDetails,
     user,
+    status: "pending", // Explicitly set initial status
   });
   return await newOrder.save();
 };

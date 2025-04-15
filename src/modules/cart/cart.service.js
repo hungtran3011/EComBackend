@@ -1,7 +1,18 @@
 import Cart from './cart.schema.js';
 
+import { cache } from '../../common/utils/cache.js'; // Assuming a cache utility exists
+
 const getCartByUserId = async (userId) => {
-  return await Cart.findOne({ user: userId }).populate('items.product');
+  // Check cache first
+  const cachedCart = cache.get(`cart_${userId}`);
+  if (cachedCart) return cachedCart;
+  
+  const cart = await Cart.findOne({ user: userId }).populate('items.product');
+  
+  // Cache the result for 5 minutes
+  if (cart) cache.set(`cart_${userId}`, cart, 300);
+  
+  return cart;
 };
 
 const addItemToCart = async (userId, productId, quantity) => {
@@ -36,7 +47,9 @@ const deleteCartItem = async (userId, productId) => {
   if (!cart) throw new Error('Cart not found');
 
   cart.items = cart.items.filter(item => item.product.toString() !== productId);
-  return await cart.save();
+  await cart.save();
+  // Return populated cart for consistency
+  return await Cart.findById(cart._id).populate('items.product');
 };
 
 export default {

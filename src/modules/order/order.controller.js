@@ -126,7 +126,7 @@ const createOrder = async (req, res) => {
       items,
       shippingAddress,
       paymentDetails,
-      user: req.user._id,
+      user: req.user.id,
     });
     res.status(201).json(newOrder);
   } catch (error) {
@@ -260,6 +260,9 @@ const updateOrder = async (req, res) => {
     });
     res.status(200).json(order);
   } catch (error) {
+    if (error.message === "Order not found") {
+      return res.status(404).json({ message: error.message });
+    }
     res.status(500).json({ message: "Server error", error });
   }
 };
