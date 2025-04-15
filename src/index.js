@@ -11,7 +11,7 @@ import session from "express-session";
 
 import { corsOptions } from "./common/config/cors.config.js";
 import { MainRouter } from "./api/routes.js";
-import swaggerDocs from "../swagger.js";
+import swaggerDocs from "./swagger.js";
 import { securityMiddleware } from "./common/middlewares/security.middleware.js";
 import redisService from './common/services/redis.service.js';
 import { csrfProtection } from "./common/middlewares/csrf.middleware.js";
