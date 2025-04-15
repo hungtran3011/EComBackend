@@ -1,7 +1,8 @@
 const whiteList = [
   "http://localhost:8080", 
   "http://localhost:3000", 
-  "http://localhost:5555"
+  "http://localhost:5555",
+  "http://localhost:5173"
 ];
 
 export const corsOptions = {
@@ -11,5 +12,6 @@ export const corsOptions = {
     } else {
       callback(new Error("Not allowed by CORS"));
     }
-  }
+  },
+  credentials: true,
 }
