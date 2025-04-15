@@ -7,7 +7,11 @@ const getAllOrders = async (status) => {
 };
 
 const getOrderById = async (id) => {
-  return await OrderModel.findById(id);
+  const order = await OrderModel.findById(id);
+  if (!order) {
+    throw new Error("Order not found");
+  }
+  return order;
 };
 
 const createOrder = async ({ items, shippingAddress, paymentDetails, user }) => {
