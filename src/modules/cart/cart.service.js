@@ -36,7 +36,9 @@ const deleteCartItem = async (userId, productId) => {
   if (!cart) throw new Error('Cart not found');
 
   cart.items = cart.items.filter(item => item.product.toString() !== productId);
-  return await cart.save();
+  await cart.save();
+  // Return populated cart for consistency
+  return await Cart.findById(cart._id).populate('items.product');
 };
 
 export default {
