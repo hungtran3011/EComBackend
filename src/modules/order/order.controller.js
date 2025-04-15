@@ -126,7 +126,7 @@ const createOrder = async (req, res) => {
       items,
       shippingAddress,
       paymentDetails,
-      user: req.user._id,
+      user: req.user.id,
     });
     res.status(201).json(newOrder);
   } catch (error) {
