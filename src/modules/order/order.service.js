@@ -2,7 +2,7 @@ import { OrderModel } from "./order.schema.js";
 
 const getAllOrders = async (status) => {
   const allowedStatuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
-  const query = allowedStatuses.includes(status) ? { status } : {};
+  const query = allowedStatuses.includes(status) ? { status: { $eq: status } } : {};
   return await OrderModel.find(query);
 };
 
