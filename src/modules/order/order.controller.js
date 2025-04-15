@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import OrderService from "./order.service.js";
 
 /**
  * @swagger
@@ -29,7 +30,15 @@ import mongoose from "mongoose";
  *       500:
  *         description: Server error
  */
-const getAllOrders = async (req, res) => {}
+const getAllOrders = async (req, res) => {
+  const { status } = req.query;
+  try {
+    const orders = await OrderService.getAllOrders(status);
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+};
 
 /**
  * @swagger
@@ -60,7 +69,18 @@ const getAllOrders = async (req, res) => {}
  *       500:
  *         description: Server error
  */
-const getOrderById = async (req, res) => {}
+const getOrderById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const order = await OrderService.getOrderById(id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+};
 
 /**
  * @swagger
@@ -99,7 +119,20 @@ const getOrderById = async (req, res) => {}
  *       500:
  *         description: Server error
  */
-const createOrder = async (req, res) => {}
+const createOrder = async (req, res) => {
+  const { items, shippingAddress, paymentDetails } = req.body;
+  try {
+    const newOrder = await OrderService.createOrder({
+      items,
+      shippingAddress,
+      paymentDetails,
+      user: req.user._id,
+    });
+    res.status(201).json(newOrder);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+};
 
 /**
  * @swagger
@@ -128,7 +161,15 @@ const createOrder = async (req, res) => {}
  *       500:
  *         description: Server error
  */
-const cancelOrder = async (req, res) => {}
+const cancelOrder = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const order = await OrderService.cancelOrder(id);
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+};
 
 /**
  * @swagger
@@ -157,7 +198,15 @@ const cancelOrder = async (req, res) => {}
  *       500:
  *         description: Server error
  */
-const completeOrder = async (req, res) => {}
+const completeOrder = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const order = await OrderService.completeOrder(id);
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+};
 
 /**
  * @swagger
@@ -200,7 +249,20 @@ const completeOrder = async (req, res) => {}
  *       500:
  *         description: Server error
  */
-const updateOrder = async (req, res) => {}
+const updateOrder = async (req, res) => {
+  const { id } = req.params;
+  const { status, shippingAddress, paymentDetails } = req.body;
+  try {
+    const order = await OrderService.updateOrder(id, {
+      status,
+      shippingAddress,
+      paymentDetails,
+    });
+    res.status(200).json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
+  }
+};
 
 const OrderControllers = {
   getAllOrders,
