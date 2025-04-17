@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import CartService from './cart.service.js';
 
 /**
  * @swagger
@@ -20,7 +21,14 @@ import mongoose from "mongoose";
  *       500:
  *         description: Server error
  */
-const getAllUserCart = (req, res) => {}
+const getAllUserCart = async (req, res) => {
+  try {
+    const cart = await CartService.getCartByUserId(req.user.id);
+    res.status(200).json(cart);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 /**
  * @swagger
@@ -55,7 +63,15 @@ const getAllUserCart = (req, res) => {}
  *       500:
  *         description: Server error
  */
-const updateCartItemQuantity = (req, res) => {}
+const updateCartItemQuantity = async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+    const cart = await CartService.updateCartItemQuantity(req.user.id, productId, quantity);
+    res.status(200).json(cart);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 /**
  * @swagger
@@ -84,7 +100,15 @@ const updateCartItemQuantity = (req, res) => {}
  *       500:
  *         description: Server error
  */
-const deleteCartItem = (req, res) => {}
+const deleteCartItem = async (req, res) => {
+  try {
+    const { productId } = req.body;
+    const cart = await CartService.deleteCartItem(req.user.id, productId);
+    res.status(200).json(cart);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 /**
  * @swagger
@@ -119,7 +143,15 @@ const deleteCartItem = (req, res) => {}
  *       500:
  *         description: Server error
  */
-const addToCart = (req, res) => {}
+const addToCart = async (req, res) => {
+  try {
+    const { productId, quantity } = req.body;
+    const cart = await CartService.addItemToCart(req.user.id, productId, quantity);
+    res.status(201).json(cart);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 const CartControllers = {
   getAllUserCart,

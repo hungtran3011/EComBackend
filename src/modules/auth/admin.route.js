@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { adminMiddleware } from "../common/middlewares/admin.middleware.js";
-import { IPRateLimiter } from "../common/config/rate-limit.js";
-import AuthControllers from "../modules/auth/auth.controller.js";
-import AdminControllers from "../modules/auth/admin.controller.js";
+import { adminMiddleware } from "../../common/middlewares/admin.middleware.js";
+import { IPRateLimiter } from "../../common/config/rate-limit.js";
+import AuthControllers from "./auth.controller.js";
+import AdminControllers from "./admin.controller.js";
 
 const router = Router();
 

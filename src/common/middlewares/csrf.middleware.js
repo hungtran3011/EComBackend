@@ -10,6 +10,7 @@ const SECRET = process.env.CSRF_SECRET;
  * @name csrfProtection
  * @description Middleware that provides CSRF protection
  * Uses Double Submit Cookie pattern with custom header verification
+ * Allows tokens to be used for multiple requests
  */
 export const csrfProtection = (options = {}) => {
   // Set defaults
@@ -33,8 +34,8 @@ export const csrfProtection = (options = {}) => {
       return next(new Error('Session middleware required'));
     }
     
-    // Generate CSRF token if it doesn't exist
-    if (!req.cookies[opts.cookie.key]) {
+    // Generate a new CSRF token only if one doesn't exist
+    if (!req.session.csrfSecret || !req.cookies[opts.cookie.key]) {
       try {
         // Create a new CSRF token
         const secret = await tokens.secret();
@@ -45,9 +46,17 @@ export const csrfProtection = (options = {}) => {
         
         // Set cookie with the token
         res.cookie(opts.cookie.key, token, opts.cookie);
+        
+        // For API responses, let's attach the token to res.locals
+        // so it can be included in API responses if needed
+        res.locals.csrfToken = token;
       } catch (error) {
         console.error('CSRF token generation error:', error);
       }
+    } else {
+      // If token exists, make it available to the response
+      const existingToken = req.cookies[opts.cookie.key];
+      res.locals.csrfToken = existingToken;
     }
     
     // Skip CSRF check for ignored methods
@@ -71,6 +80,7 @@ export const csrfProtection = (options = {}) => {
         return res.status(403).json({ message: 'Invalid CSRF token' });
       }
       
+      // Don't regenerate the token after verification - let it be reused
       next();
     } catch (error) {
       console.error('CSRF validation error:', error);
@@ -90,7 +100,12 @@ export const csrfErrorHandler = (err, req, res, next) => {
   next(err);
 };
 
-// Add this function back to exports in csrf.middleware.js
+/**
+ * @name generateCsrfToken
+ * @description Generate a new CSRF token for explicit token rotation
+ * @param {Object} req - Express request object
+ * @returns {Promise<string>} New CSRF token
+ */
 export const generateCsrfToken = async (req) => {
   if (!req.session) {
     throw new Error('Session middleware required');
@@ -100,5 +115,3 @@ export const generateCsrfToken = async (req) => {
   req.session.csrfSecret = secret;
   return tokens.create(secret);
 };
-
-// Then update exports

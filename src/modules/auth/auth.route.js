@@ -6,11 +6,6 @@ import cookieParser from "cookie-parser";
 import session from "express-session";
 import {csrfProtection} from "../../common/middlewares/csrf.middleware.js"
 
-/**
- * @name router
- * @description Router for authentication endpoints
- * @type {Router}
- */
 const router = Router()
 
 // Sử dụng cookie-parser để đọc cookies
