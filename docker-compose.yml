@@ -1,0 +1,11 @@
+version: '3.8'
+name: ecom-backend
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.production
+    volumes:
+      - ./src/logs:/usr/src/app/src/logs
