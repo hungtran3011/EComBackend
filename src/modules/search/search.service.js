@@ -1,4 +1,4 @@
-import { MongoDBClient } from "../../common/services/mongo.service";
+import { MongoDBClient } from "../../common/services/mongo.service.js";
 import { Product } from "../product/product.schema.js";
 import redisService from '../../common/services/redis.service.js';
 
@@ -40,71 +40,69 @@ export const searchProducts = async (options = {}) => {
       return cachedResults;
     }
 
-    // Prepare search query
-    const searchQuery = {};
-    
-    // Text search
+    // Prepare aggregation pipeline
+    const pipeline = [];
+
+    // Add $search stage for full-text search
     if (query && query.trim() !== '') {
-      // Use text index if available, otherwise use regex
-      // Note: This requires a text index on name and description fields
-      // db.products.createIndex({ name: "text", description: "text" })
-      try {
-        searchQuery.$text = { $search: query };
-      } catch (error) {
-        // Fallback to regex if text search fails or index doesn't exist
-        searchQuery.$or = [
-          { name: { $regex: query, $options: 'i' } },
-          { description: { $regex: query, $options: 'i' } }
-        ];
-      }
+      pipeline.push({
+        $search: {
+          index: 'default', // Replace 'default' with your index name if different
+          text: {
+            query: query,
+            path: ['name', 'description'] // Fields to search
+          }
+        }
+      });
     }
-    
-    // Price range filter
+
+    // Add filters
+    const matchStage = {};
     if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-      searchQuery.price = {};
+      matchStage.price = {};
       if (filters.minPrice !== undefined) {
-        searchQuery.price.$gte = Number(filters.minPrice);
+        matchStage.price.$gte = Number(filters.minPrice);
       }
       if (filters.maxPrice !== undefined) {
-        searchQuery.price.$lte = Number(filters.maxPrice);
+        matchStage.price.$lte = Number(filters.maxPrice);
       }
     }
-    
-    // Category filter
     if (filters.category) {
-      searchQuery.category = filters.category;
+      matchStage.category = filters.category;
     }
-    
-    // Custom field filters
     if (filters.fields && Object.keys(filters.fields).length > 0) {
-      // Handle custom field filtering
-      // This approach works with MongoDB's dot notation
       for (const [fieldName, fieldValue] of Object.entries(filters.fields)) {
-        searchQuery[`fieldValues.name`] = fieldName;
-        searchQuery[`fieldValues.value`] = fieldValue;
+        matchStage[`fieldValues.name`] = fieldName;
+        matchStage[`fieldValues.value`] = fieldValue;
       }
     }
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
 
-    // Prepare sort options
-    const sortOptions = {};
-    sortOptions[sort] = sortDirection === 'asc' ? 1 : -1;
-    
-    // Calculate pagination
+    // Add sorting
+    const sortStage = {};
+    sortStage[sort] = sortDirection === 'asc' ? 1 : -1;
+    pipeline.push({ $sort: sortStage });
+
+    // Add pagination
     const skip = (page - 1) * limit;
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
 
-    // Execute query
-    const total = await Product.countDocuments(searchQuery);
-    const products = await Product.find(searchQuery)
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(limit)
-      .populate('category');
-    
+    // Execute aggregation pipeline
+    const products = await Product.aggregate(pipeline).exec();
+
+    // Count total documents (for pagination)
+    const total = await Product.aggregate([
+      ...pipeline.slice(0, pipeline.length - 2), // Exclude $skip and $limit
+      { $count: 'total' }
+    ]).exec();
+    const totalCount = total.length > 0 ? total[0].total : 0;
+
     // Format products to include fields as object
     const formattedProducts = products.map(product => {
-      const productObj = product.toObject();
-      
-      // Convert fieldValues array to object for easier client-side handling
+      const productObj = product;
       if (productObj.fieldValues && Array.isArray(productObj.fieldValues)) {
         productObj.fields = {};
         productObj.fieldValues.forEach(field => {
@@ -112,24 +110,23 @@ export const searchProducts = async (options = {}) => {
         });
         delete productObj.fieldValues;
       }
-      
       return productObj;
     });
-    
+
     // Prepare result
     const result = {
       products: formattedProducts,
       pagination: {
-        total,
+        total: totalCount,
         page,
         limit,
-        pages: Math.ceil(total / limit)
+        pages: Math.ceil(totalCount / limit)
       }
     };
-    
+
     // Cache results for 5 minutes
     await redisService.set(cacheKey, result, 300);
-    
+
     return result;
   } catch (error) {
     console.error('Search error:', error);
