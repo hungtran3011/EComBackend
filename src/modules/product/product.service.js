@@ -225,7 +225,7 @@ export const updateProductService = async (id, updateData) => {
   if (!existingProduct) throw new Error("Product not found");
 
   // Process category if it's an object with _id
-  let processedData = { ...updateData };
+  const processedData = { ...updateData };
   if (updateData.category && typeof updateData.category === 'object' && updateData.category._id) {
     processedData.category = updateData.category._id;
   }
