@@ -395,7 +395,7 @@ export const createCategoryService = async (categoryData) => {
  * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy danh mục
  */
 export const updateCategoryService = async (id, updateData) => {
-  console.log(`Attempting to update category ${id} with data:`, updateData);
+  console.log("Attempting to update category %s with data:", id, updateData);
 
   try {
     if (!isValidMongoId(id)) {
