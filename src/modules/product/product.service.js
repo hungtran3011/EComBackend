@@ -250,11 +250,11 @@ export const updateProductService = async (id, updateData) => {
     // First, verify the category has these fields defined
     if (processedData.category) {
       try {
-        // Validate the category ID
         const categoryId = validateObjectId(processedData.category);
-        
-        // Now use the validated ID to fetch the category
-        const categoryDoc = await Category.findById(categoryId);
+        if (!categoryId) {
+          throw new Error("Invalid category ID");
+        }
+        const categoryDoc = await Category.findOne({ _id: { $eq: categoryId } });
         
         if (categoryDoc) {
           // Existing code continues...
@@ -320,27 +320,38 @@ export const updateProductService = async (id, updateData) => {
     processedData.productImages = updateData.productImages;
   }
 
-  // Update the product directly without validation
-  const updatedProduct = await Product.findByIdAndUpdate(
-    id,
-    { $set: processedData },
-    { new: true, runValidators: false }
-  ).populate('category');
+  try {
+    // Validate the processed data using schema before updating
+    const validatedData = ProductValidationSchema.partial().parse(processedData);
+    
+    // Update the product with validated data
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { $set: validatedData },
+      { new: true, runValidators: true }
+    ).populate('category');
 
-  if (!updatedProduct) {
-    throw new Error("Failed to update product");
+    if (!updatedProduct) {
+      throw new Error("Failed to update product");
+    }
+
+    // Format response to include fields as object
+    const result = updatedProduct.toObject();
+    result.fields = formatFieldValues(result.fieldValues || []);
+
+    // Update the cache with the latest product data
+    const cacheKey = `product:${id}`;
+    await redisService.set(cacheKey, result, 1800);
+    console.log(`Updated cache for product ${id}`);
+
+    return result;
+  } catch (error) {
+    if (error.name === 'ZodError') {
+      console.error('Validation error:', error.errors);
+      throw new Error(`Validation failed: ${error.errors.map(e => e.message).join(', ')}`);
+    }
+    throw error;
   }
-
-  // Format response to include fields as object
-  const result = updatedProduct.toObject();
-  result.fields = formatFieldValues(result.fieldValues || []);
-
-  // Update the cache with the latest product data
-  const cacheKey = `product:${id}`;
-  await redisService.set(cacheKey, result, 1800);
-  console.log(`Updated cache for product ${id}`);
-
-  return result;
 };
 
 /**
