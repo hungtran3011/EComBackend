@@ -112,6 +112,25 @@ const getUserById = async (id, currentUser) => {
   });
 }
 
+const findAdminByEmailOrPhone = async (email, phoneNumber) => {
+  if (!email && !phoneNumber) {
+    throw new Error("Email hoặc số điện thoại là bắt buộc");
+  }
+
+  const query = { isRegistered: true, role: "admin" };
+  
+  if (email) {
+    const validEmail = OtpEmailValidationSchema.parse(email)
+    query.email = validEmail;
+  } else if (phoneNumber) {
+    const validPhone = OtpPhoneNumberValidationSchema.parse(phoneNumber)
+    query.phoneNumber = validPhone;
+  }
+  console.log(query.email)
+  
+  return await User.findOne(query);
+}
+
 /**
  * @name createNonRegisteredUser
  * @description Tạo một người dùng chưa đăng ký
@@ -229,5 +248,6 @@ export const UserService = {
   createNonRegisteredUser,
   updateUser,
   deleteUser,
-  findUserByEmailOrPhone // Thêm hàm mới vào export
+  findUserByEmailOrPhone,
+  findAdminByEmailOrPhone
 };

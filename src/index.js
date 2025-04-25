@@ -23,8 +23,12 @@ const __dirname = path.dirname(__filename);
 config();
 
 // Create logs directory if it doesn't exist
-const logDirectory = path.join(__dirname, "logs");
+const logDirectory = path.join(__dirname, "..", "logs");
 fs.existsSync(logDirectory) || fs.mkdirSync(logDirectory, { recursive: true });
+
+// Create uploads/temp directory for temporary file storage
+const uploadsDirectory = path.join(__dirname, "..", "uploads", "temp");
+fs.existsSync(uploadsDirectory) || fs.mkdirSync(uploadsDirectory, { recursive: true });
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -80,11 +84,13 @@ app.use(morgan('dev', {
 }))
 
 // Fix morgan configuration syntax
-app.use(morgan("combined", {
-  stream: fs.createWriteStream(path.join(__dirname, "logs", "access.log"), {
-    flags: "a"
-  })
-}));
+// app.use(morgan("combined", {
+//   stream: fs.createWriteStream(path.join(__dirname, "logs", "access.log"), {
+//     flags: "a"
+//   })
+// }));
+
+app.use(morgan("combined"));
 
 app.use(cors(corsOptions));
 
@@ -129,3 +135,31 @@ process.on('SIGINT', async () => {
   
   process.exit(0);
 });
+
+// Optional: Add cleanup for old temporary files (add near the bottom of index.js)
+if (process.env.NODE_ENV === 'production') {
+  // Clean temp files older than 1 hour every 12 hours
+  setInterval(() => {
+    const tempDir = path.join(__dirname, "..", "uploads", "temp");
+    fs.readdir(tempDir, (err, files) => {
+      if (err) return console.error('Error reading temp directory:', err);
+      
+      const now = Date.now();
+      const oneHourAgo = now - (60 * 60 * 1000);
+      
+      files.forEach(file => {
+        const filePath = path.join(tempDir, file);
+        fs.stat(filePath, (err, stats) => {
+          if (err) return console.error(`Error stating file ${file}:`, err);
+          
+          if (stats.mtimeMs < oneHourAgo) {
+            fs.unlink(filePath, err => {
+              if (err) console.error(`Error deleting old temp file ${file}:`, err);
+              else console.log(`Deleted old temp file: ${file}`);
+            });
+          }
+        });
+      });
+    });
+  }, 12 * 60 * 60 * 1000); // Run every 12 hours
+}
