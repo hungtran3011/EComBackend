@@ -23,7 +23,7 @@ export const getAllProductsService = async (page, limit) => {
     const startIndex = (page - 1) * limit;
     const total = await Product.countDocuments();
     const products = await Product.find().skip(startIndex).limit(limit);
-    console.log(products)
+    // console.log(products)
     const result = ProductListValidationSchema.parse({ page, limit, total, products });
     console.log(`Lấy ${products.length} sản phẩm từ database`);
     return result;
@@ -114,8 +114,15 @@ export const createProductService = async (productData) => {
   const { category, fields, ...basicProductData } = otherData;
 
   // Check if category exists
-  let categoryObjectId = category._id;
-  if (!validateObjectId(categoryObjectId)) {
+  let categoryObjectId;
+  // if (!validateObjectId(categoryObjectId)) {
+  //   throw new Error("Invalid category ID");
+  // }
+  try {
+    categoryObjectId = validateObjectId(category?._id ?? category);
+  }
+  catch (error) {
+    console.error("Error validating category ID:", error);
     throw new Error("Invalid category ID");
   }
 
@@ -242,28 +249,38 @@ export const updateProductService = async (id, updateData) => {
 
     // First, verify the category has these fields defined
     if (processedData.category) {
-      const categoryId = processedData.category;
-      const categoryDoc = await Category.findById(categoryId);
+      try {
+        // Validate the category ID
+        const categoryId = validateObjectId(processedData.category);
+        
+        // Now use the validated ID to fetch the category
+        const categoryDoc = await Category.findById(categoryId);
+        
+        if (categoryDoc) {
+          // Existing code continues...
+          const validFieldsMap = {};
+          categoryDoc.fields.forEach(field => {
+            validFieldsMap[field.name] = {
+              type: field.type,
+              required: field.required
+            };
+          });
 
-      if (categoryDoc) {
-        // Create map of valid fields for this category
-        const validFieldsMap = {};
-        categoryDoc.fields.forEach(field => {
-          validFieldsMap[field.name] = {
-            type: field.type,
-            required: field.required
-          };
-        });
+          // Verify required fields are included
+          const missingRequiredFields = categoryDoc.fields
+            .filter(field => field.required)
+            .filter(field => !updateData.fields[field.name] && !existingFieldsMap[field.name])
+            .map(field => field.name);
 
-        // Verify required fields are included
-        const missingRequiredFields = categoryDoc.fields
-          .filter(field => field.required)
-          .filter(field => !updateData.fields[field.name] && !existingFieldsMap[field.name])
-          .map(field => field.name);
-
-        if (missingRequiredFields.length > 0) {
-          throw new Error(`Thiếu các trường bắt buộc: ${missingRequiredFields.join(', ')}`);
+          if (missingRequiredFields.length > 0) {
+            throw new Error(`Thiếu các trường bắt buộc: ${missingRequiredFields.join(', ')}`);
+          }
+        } else {
+          throw new Error("Không tìm thấy danh mục");
         }
+      } catch (error) {
+        console.error("Error validating category ID:", error);
+        throw new Error("ID danh mục không hợp lệ");
       }
     }
 
@@ -434,7 +451,7 @@ export const updateCategoryService = async (id, updateData) => {
       throw new Error(`Invalid category fields: ${error.message}`);
     }
 
-    console.log(`Updating category ${id} with validated data:`, validatedData);
+    console.log(`Updating category %s with validated data:`, id, validatedData);
 
     const updatedCategory = await Category.findByIdAndUpdate(
       id,
@@ -450,7 +467,7 @@ export const updateCategoryService = async (id, updateData) => {
     console.log(`Category ${id} updated successfully`);
     return CategoryValidationSchema.parse(updatedCategory.toObject());
   } catch (error) {
-    console.error(`Error updating category ${id}:`, error);
+    console.error(`Error updating category %s:`, id, error);
     if (error.errors) {
       // Log validation errors in detail
       console.error(`Validation errors:`, JSON.stringify(error.errors, null, 2));

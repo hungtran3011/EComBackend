@@ -154,8 +154,12 @@ export const getProductSuggestions = async (text, limit = 5) => {
       return cachedSuggestions;
     }
     
-    // Find products with names starting with the text
-    const regex = new RegExp(`^${text}`, 'i');
+    // Escape special regex characters to prevent regex injection
+    const escapedText = escapeRegExp(text);
+    
+    // Create safe regex with escaped user input
+    const regex = new RegExp(`^${escapedText}`, 'i');
+    
     const suggestions = await Product.find({ name: regex })
       .select('name')
       .limit(limit);
@@ -171,6 +175,16 @@ export const getProductSuggestions = async (text, limit = 5) => {
     throw error;
   }
 };
+
+/**
+ * Escapes special characters in a string for use in a regular expression
+ * @param {string} string - The string to escape
+ * @returns {string} - The escaped string
+ */
+function escapeRegExp(string) {
+  // Escape special regex characters: ^ $ \ . * + ? ( ) [ ] { } |
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export default {
   searchProducts,

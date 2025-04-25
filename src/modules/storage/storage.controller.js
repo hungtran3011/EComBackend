@@ -1,9 +1,17 @@
 import mongoose from "mongoose";
 import { StorageItemModel } from "./storage.schema.js";
+import { ProductValidationSchema, isValidMongoId } from "../../common/validators/product.validator.js";
+import { Product } from "../product/product.schema.js";
 
 const getProductQuantity = async (req, res) => {
   try {
     const { productId } = req.params;
+    
+    // Validate productId format
+    if (!isValidMongoId(productId)) {
+      return res.status(400).json({ message: "Invalid product ID format" });
+    }
+    
     const storageItem = await StorageItemModel.findOne({ product: productId });
 
     if (!storageItem) {
@@ -22,17 +30,45 @@ const updateProductQuantity = async (req, res) => {
     const { productId } = req.params;
     const { quantity } = req.body;
 
-    if (quantity === undefined || quantity < 0) {
-      return res.status(400).json({ message: "Invalid quantity" });
+    // Validate productId format
+    if (!isValidMongoId(productId)) {
+      return res.status(400).json({ message: "Invalid product ID format" });
     }
 
+    // Validate quantity
+    if (quantity === undefined) {
+      return res.status(400).json({ message: "Quantity is required" });
+    }
+    
+    // Ensure quantity is a number
+    const parsedQuantity = Number(quantity);
+    if (isNaN(parsedQuantity)) {
+      return res.status(400).json({ message: "Quantity must be a number" });
+    }
+
+    // Ensure quantity is not negative
+    if (parsedQuantity < 0) {
+      return res.status(400).json({ message: "Quantity cannot be negative" });
+    }
+    
+    // Check if product exists
+    const productExists = await Product.exists({ _id: productId });
+    if (!productExists) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    // Update storage item
     const storageItem = await StorageItemModel.findOneAndUpdate(
       { product: productId },
-      { quantity },
+      { quantity: parsedQuantity },
       { new: true, upsert: true }
     );
 
-    return res.status(200).json({ productId, quantity: storageItem.quantity });
+    return res.status(200).json({ 
+      productId, 
+      quantity: storageItem.quantity,
+      message: "Product quantity updated successfully" 
+    });
   } catch (error) {
     console.error("Error updating product quantity:", error);
     return res.status(500).json({ message: "Internal server error" });
