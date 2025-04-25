@@ -295,10 +295,9 @@ export const updateProductService = async (id, updateData) => {
     }
 
     // Replace fields with fieldValues in the update data
-    delete processedData.fields;
-    processedData.fieldValues = updatedFieldValues;
+    const { fields, ...dataWithoutFields } = processedData;
+    processedData = { ...dataWithoutFields, fieldValues: updatedFieldValues };
   }
-
   // Handle productImages update if provided
   if (updateData.productImages !== undefined) {
     processedData.productImages = updateData.productImages;
