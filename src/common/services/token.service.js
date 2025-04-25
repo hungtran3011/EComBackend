@@ -2,7 +2,6 @@ import redisService from './redis.service.js';
 import jwt from 'jsonwebtoken';
 import { config } from 'dotenv';
 
-config();
 
 /**
  * @name TokenService
@@ -17,24 +16,24 @@ const TOKEN_PREFIXES = {
 };
 
 // Thời hạn mặc định
-const DEFAULT_ACCESS_TOKEN_TTL = 60 * 60; // 1 giờ
+const DEFAULT_ACCESS_TOKEN_TTL = 60 * 60 * 24; // 1 ngày
 const DEFAULT_REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60; // 7 ngày
-const DEFAULT_ADMIN_TOKEN_TTL = 30 * 60; // 30 phút
+const DEFAULT_ADMIN_TOKEN_TTL = 60 * 60; // 1 giờ
 const DEFAULT_ADMIN_REFRESH_TOKEN_TTL = 4 * 60 * 60; // 4 giờ
 
 /**
  * @name generateAccessToken
  * @description Tạo JWT access token cho người dùng
- * @param {string|object} user - ID người dùng hoặc thông tin người dùng
+ * @param {object} user - ID người dùng hoặc thông tin người dùng
  * @param {boolean} isAdmin - Có phải là token admin không
  * @returns {string} JWT access token
  */
 const generateAccessToken = (user, isAdmin = false) => {
-  const userId = typeof user === 'object' ? user._id || user.id : user;
+  // const userInfo = typeof user === 'object' ? user._id || user.id : user;
   const role = typeof user === 'object' ? user.role : 'customer';
   
   const payload = { 
-    id: userId, 
+    user: user,
     role,
     iat: Math.floor(Date.now() / 1000)
   };
@@ -57,18 +56,20 @@ const generateAccessToken = (user, isAdmin = false) => {
 /**
  * @name generateRefreshToken
  * @description Tạo JWT refresh token cho người dùng
- * @param {string|object} user - ID người dùng hoặc thông tin người dùng
+ * @param {object} user - ID người dùng hoặc thông tin người dùng
  * @param {boolean} isAdmin - Có phải là token admin không
  * @returns {string} JWT refresh token
  */
 const generateRefreshToken = (user, isAdmin = false) => {
-  const userId = typeof user === 'object' ? user._id || user.id : user;
+  const userInfo = user;
   const role = typeof user === 'object' ? user.role : 'customer';
   
+  // Fix: Use user ID instead of the whole user object for JTI
+  const userId = typeof user === 'object' ? (user.id || user._id) : user;
   const jti = `${userId}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   
   const payload = { 
-    id: userId, 
+    user: userInfo, 
     role,
     jti,
     iat: Math.floor(Date.now() / 1000)
@@ -147,10 +148,23 @@ const verifyRefreshToken = async (refreshToken) => {
   try {
     // Giải mã token không cần verify trước để lấy userId và jti
     const decoded = jwt.decode(refreshToken);
-    if (!decoded || !decoded.id || !decoded.jti) throw new Error('Invalid refresh token format');
+    console.log('Decoded refresh token:', decoded);
     
-    // Kiểm tra xem token có trong Redis không
-    const tokenKey = `${TOKEN_PREFIXES.REFRESH}${decoded.id}:${decoded.jti}`;
+    // Check for valid structure
+    if (!decoded || !decoded.jti) {
+      throw new Error('Invalid refresh token format: missing jti');
+    }
+    
+    // Check if user object exists and has proper ID
+    if (!decoded.user || (!decoded.user.id && !decoded.user._id)) {
+      throw new Error('Invalid refresh token format: missing user ID');
+    }
+    
+    // Get the user ID, handling both formats
+    const userId = decoded.user.id || decoded.user._id;
+    
+    // Kiểm tra xem token có trong Redis không - use correct user ID path
+    const tokenKey = `${TOKEN_PREFIXES.REFRESH}${userId}:${decoded.jti}`;
     const tokenData = await redisService.get(tokenKey, true);
     
     if (!tokenData || tokenData.token !== refreshToken) {
@@ -183,14 +197,19 @@ const revokeRefreshToken = async (refreshToken) => {
   try {
     // Giải mã token không cần verify trước để lấy userId và jti
     const decoded = jwt.decode(refreshToken);
-    if (!decoded || !decoded.id || !decoded.jti) return false;
+    
+    // Check for valid structure and obtain user ID correctly
+    if (!decoded || !decoded.jti) return false;
+    
+    const userId = decoded.user?.id || decoded.user?._id || decoded.id;
+    if (!userId) return false;
     
     // Xóa token khỏi Redis
-    const tokenKey = `${TOKEN_PREFIXES.REFRESH}${decoded.id}:${decoded.jti}`;
+    const tokenKey = `${TOKEN_PREFIXES.REFRESH}${userId}:${decoded.jti}`;
     await redisService.del(tokenKey);
     
     // Xóa jti khỏi danh sách token của user
-    const userTokensKey = `${TOKEN_PREFIXES.REFRESH}${decoded.id}:tokens`;
+    const userTokensKey = `${TOKEN_PREFIXES.REFRESH}${userId}:tokens`;
     await redisService.hDel(userTokensKey, decoded.jti);
     
     return true;

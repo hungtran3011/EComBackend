@@ -160,6 +160,23 @@ const handleRefreshToken = async (req, res) => {
   }
 }
 
+const handleAdminRefreshToken = async (req, res) => {
+  try {
+    // Lấy refreshToken từ cookie thay vì từ body
+    const refreshToken = req.cookies.adminRefreshToken;
+    
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh token là bắt buộc" });
+    }
+    
+    const { accessToken } = await AuthService.handleAdminRefreshToken(refreshToken);
+    res.status(200).json({ accessToken });
+  } catch (e) {
+    console.error('Admin refresh token error:', e);
+    res.status(e.status || 500).json({ message: e.message });
+  }
+}
+
 
 /**
  * @name handleLogout
@@ -175,7 +192,7 @@ const handleLogout = async (req, res) => {
   try {
     const userId = req.user && req.user.id;
     const accessToken = req.token;
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = req.cookies?.refreshToken || req.cookies?.adminRefreshToken;
     
     await AuthService.handleLogout(userId, accessToken, refreshToken);
     
@@ -401,6 +418,7 @@ const AuthControllers = {
   sendLoginOTP,
   signInWithOTP,
   handleRefreshToken,
+  handleAdminRefreshToken,
   handleLogout,
   adminSignIn,
   sendPasswordResetOTP,
