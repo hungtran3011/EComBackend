@@ -22,6 +22,7 @@ import mongoose, { model } from "mongoose";
  * - `province`: tỉnh 
  * @property {String} role Vai trò người dùng: 'customer', 'admin', hoặc 'anon'
  * @property {Boolean} isRegistered Cho biết người dùng đã đăng ký hay chưa
+ * @property {String} avatarUrl Đường dẫn đến ảnh đại diện của người dùng
  * @property {Date} createdAt Thời gian tạo
  */
 const User = mongoose.Schema({
@@ -38,6 +39,7 @@ const User = mongoose.Schema({
     province: { type: String, required: false }
   },
   role: { type: String, required: true, enum: ['customer', 'admin', 'anon'], default: 'anon' },
+  avatarUrl: { type: String, required: false },
   isRegistered: { type: Boolean, default: false },
 }, {timestamps: true}) 
 

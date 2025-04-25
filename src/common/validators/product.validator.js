@@ -7,6 +7,7 @@
  */
 import mongoose from "mongoose";
 import { z } from "zod";
+import validateObjectId from "./objectId.validator.js";
 
 /**
  * @name isValidObjectIdWithOptions
@@ -50,6 +51,43 @@ const isValidObjectIdAllowEmpty = (val) => isValidObjectIdWithOptions(val, { all
 export const isValidMongoId = (id) => isValidObjectIdWithOptions(id);
 
 /**
+ * Handles both string ObjectIDs and actual ObjectID instances
+ */
+const handleObjectId = (val) => {
+  if (!val) return val;
+  
+  // If it's already a MongoDB ObjectID instance, convert to string
+  if (val instanceof mongoose.Types.ObjectId) {
+    return val.toString();
+  }
+  
+  // Otherwise return as is (should be string)
+  return val;
+};
+
+/**
+ * Enhanced validator that checks both string IDs and ObjectID instances
+ */
+const isValidObjectIdEnhanced = (val, options = { allowEmpty: false }) => {
+  // Handle empty values
+  if (!val) {
+    if (val === '') return false;
+    return options.allowEmpty;
+  }
+  
+  // If it's an ObjectID instance, it's valid
+  if (val instanceof mongoose.Types.ObjectId) {
+    return true;
+  }
+  
+  // Otherwise validate as string
+  return mongoose.Types.ObjectId.isValid(val);
+};
+
+const isValidObjectIdAllowEmptyEnhanced = (val) => 
+  isValidObjectIdEnhanced(val, { allowEmpty: true });
+
+/**
  * @name ProductSchema
  * @description Schema xác thực dữ liệu sản phẩm trước khi thực hiện các thao tác CRUD.
  * Đảm bảo rằng dữ liệu sản phẩm đầy đủ và đúng định dạng, bao gồm biến đổi dữ liệu như cắt khoảng trắng
@@ -57,6 +95,12 @@ export const isValidMongoId = (id) => isValidObjectIdWithOptions(id);
  * @type {z.ZodObject}
  */
 export const ProductValidationSchema = z.object({
+  _id: z.union([
+    z.string().min(1, "ID required"),
+    z.instanceof(mongoose.Types.ObjectId)
+  ])
+  .transform(handleObjectId) // Convert to string ID if needed
+  .refine(isValidObjectIdAllowEmpty, "Invalid product ID format"),
   name: z.string()
     .min(1, "Product name cannot be empty")
     .max(200, "Product name too long")
@@ -71,10 +115,18 @@ export const ProductValidationSchema = z.object({
     .positive("Price must be positive")
     .transform(val => Math.round(val * 100) / 100), // Round to 2 decimal places
     
-  // Fix: cannot chain .min() after .refine() - combined validation
-  category: z.string()
-    .min(1, "Category ID required")
-    .refine(isValidObjectIdAllowEmpty, "Invalid category ID format"),
+  // Accept either string ID or ObjectID instance
+  category: z.union([
+    z.string().min(1, "Category ID required"),
+    z.instanceof(mongoose.Types.ObjectId),
+    z.object({
+      _id: z.union([
+        z.string().min(1, "Category ID required"),
+        z.instanceof(mongoose.Types.ObjectId)
+      ])
+    })
+  ])
+  .transform(validateObjectId),
     
   fields: z.array(
     z.object({
@@ -87,9 +139,14 @@ export const ProductValidationSchema = z.object({
     })
   ).max(50, "Too many custom fields").optional(),
   
-  createdBy: z.string()
-    .refine(isValidObjectIdAllowEmpty, "Invalid user ID format")
-    .optional()
+  // Accept either string ID or ObjectID instance
+  createdBy: z.union([
+    z.string(),
+    z.instanceof(mongoose.Types.ObjectId)
+  ])
+  .transform(handleObjectId) // Convert to string ID if needed
+  .refine(isValidObjectIdAllowEmptyEnhanced, "Invalid user ID format")
+  .optional()
 });
 
 /**
@@ -114,9 +171,13 @@ export const ProductListValidationSchema = z.object({
  * @type {z.ZodObject}
  */
 export const CategoryValidationSchema = z.object({
-  id: z.string()
-    .refine(isValidObjectIdAllowEmpty, "Invalid category ID format")
-    .optional(),
+  _id: z.union([
+    z.string().min(1, "ID required"),
+    z.instanceof(mongoose.Types.ObjectId)
+  ])
+  .transform(handleObjectId)
+  .refine(isValidObjectIdAllowEmpty, "Invalid category ID format")
+  .optional(),
   name: z.string()
     .min(1, "Tên danh mục không được để trống")
     .transform(val => val.trim()),
@@ -138,20 +199,22 @@ export const CategoryValidationSchema = z.object({
     ], "Loại trường không hợp lệ"),
     required: z.boolean().default(false)
   })).optional(),
-  createdBy: z.string()
-    .refine(isValidObjectIdAllowEmpty, "Invalid user ID format")
-    .optional(),
+  createdBy: z.union([
+    z.string(),
+    z.instanceof(mongoose.Types.ObjectId)
+  ])
+  .transform(handleObjectId)
+  .refine(isValidObjectIdAllowEmptyEnhanced, "Invalid user ID format")
+  .optional(),
 });
 
 /**
  * Lược đồ xác thực cho danh mục sản phẩm.
  * 
  * @constant {z.ZodObject} CategoriesValidationSchema
- * @description Lược đồ này sử dụng `z.object` để xác thực một mảng chứa các đối tượng tuân theo `CategoryValidationSchema`.
+ * @description Lược đồ này sử dụng `z.array` để xác thực một mảng chứa các đối tượng tuân theo `CategoryValidationSchema`.
  */
-export const CategoriesValidationSchema = z.object([
-  CategoryValidationSchema
-])
+export const CategoriesValidationSchema = z.array(CategoryValidationSchema).optional();
 
 /**
  * Xác thực phân trang cho sản phẩm.

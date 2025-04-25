@@ -43,15 +43,25 @@ const registerUser = async (userData) => {
   await newUser.save();
   
   // Tạo token ngay sau khi đăng ký
-  const accessToken = tokenService.generateAccessToken(newUser);
-  const refreshToken = tokenService.generateRefreshToken(newUser);
+  const accessToken = tokenService.generateAccessToken({
+    id: newUser._id,
+    role: newUser.role,
+    avatarUrl: newUser.avatarUrl,
+    email: newUser.email,
+  }, false);
+  const refreshToken = tokenService.generateRefreshToken({
+    id: newUser._id,
+    role: newUser.role,
+    avatarUrl: newUser.avatarUrl,
+    email: newUser.email,
+  }, false);
   
   // Lưu refresh token vào Redis
   await tokenService.saveRefreshToken(newUser._id.toString(), refreshToken);
   
   const userResponse = newUser.toObject();
   delete userResponse.password;
-  
+    
   return {
     user: userResponse,
     accessToken,
@@ -81,8 +91,18 @@ const signIn = async (credentials) => {
     throw { status: 401, message: "Mật khẩu không chính xác" };
   }
 
-  const accessToken = tokenService.generateAccessToken(user);
-  const refreshToken = tokenService.generateRefreshToken(user);
+  const accessToken = tokenService.generateAccessToken({
+    id: user._id,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+    email: user.email,
+  }, false);
+  const refreshToken = tokenService.generateRefreshToken({
+    id: user._id,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+    email: user.email,
+  }, false);
   
   // Lưu refresh token vào Redis
   await tokenService.saveRefreshToken(user._id.toString(), refreshToken);
@@ -180,6 +200,10 @@ const handleRefreshToken = async (refreshToken) => {
   }
 };
 
+const handleAdminRefreshToken = async (refreshToken) => {
+  return handleRefreshToken(refreshToken);
+}
+
 /**
  * Đăng xuất người dùng
  * @param {string} userId - ID người dùng
@@ -231,7 +255,9 @@ const adminSignIn = async (credentials, headers) => {
     // }
     
     const validEmail = OtpEmailValidationSchema.parse(email);
-    const admin = await User.findOne({ validEmail, role: "admin" });
+    console.log("Valid email:", validEmail); 
+    // const admin = await User.findOne({ validEmail, role: "admin" });
+    const admin = await UserService.findAdminByEmailOrPhone(validEmail, null);
     console.log("Admin:", admin);
     if (!admin) {
       console.error("Admin not found");
@@ -244,8 +270,18 @@ const adminSignIn = async (credentials, headers) => {
     }
 
     // Tạo token với flag isAdmin
-    const adminAccessToken = tokenService.generateAccessToken(admin, true);
-    const adminRefreshToken = tokenService.generateRefreshToken(admin, true);
+    const adminAccessToken = tokenService.generateAccessToken({
+      id: admin._id,
+      role: admin.role,
+      avatarUrl: admin.avatarUrl,
+      email: admin.email,
+    }, true);
+    const adminRefreshToken = tokenService.generateRefreshToken({
+      id: admin._id,
+      role: admin.role,
+      avatarUrl: admin.avatarUrl,
+      email: admin.email,
+    }, true);
 
     // Lưu refresh token vào Redis
     await tokenService.saveRefreshToken(admin._id.toString(), adminRefreshToken, true);
@@ -282,6 +318,7 @@ export default {
   signInWithOTP,
   sendLoginOTP,
   handleRefreshToken,
+  handleAdminRefreshToken,
   handleLogout,
   adminSignIn,
   COOKIE_CONFIG
