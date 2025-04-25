@@ -660,7 +660,7 @@ const uploadProductImages = async (req, res) => {
         try {
           await unlinkAsync(file.path);
         } catch (err) {
-          console.error(`Failed to delete temporary file ${file.path}:`, err);
+          console.error("Failed to delete temporary file %s:", file.path, err);
         }
       }
     }
