@@ -637,7 +637,7 @@ const uploadProductImages = async (req, res) => {
         // Delete the temporary file
         await unlinkAsync(file.path);
       } catch (error) {
-        console.error(`Error uploading image ${file.filename}:`, error);
+        console.error("Error uploading image %s:", file.filename, error);
       }
     }
     
