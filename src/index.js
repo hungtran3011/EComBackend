@@ -137,29 +137,65 @@ process.on('SIGINT', async () => {
 });
 
 // Optional: Add cleanup for old temporary files (add near the bottom of index.js)
-if (process.env.NODE_ENV === 'production') {
-  // Clean temp files older than 1 hour every 12 hours
+
+// Run in all environments with different schedules
+const CLEANUP_INTERVAL = process.env.NODE_ENV === 'production'
+  ? 12 * 60 * 60 * 1000  // 12 hours in production
+  : 1  * 60 * 60 * 1000; // 1 hour in development
+
+const FILE_AGE_LIMIT = process.env.NODE_ENV === 'production'
+  ? 60 * 60 * 1000   // 1 hour in production
+  : 15 * 60 * 1000;  // 15 minutes in development
+
+if (true) {
+  // Clean temp files older than the configured age on the configured interval
   setInterval(() => {
-    const tempDir = path.join(__dirname, "..", "uploads", "temp");
-    fs.readdir(tempDir, (err, files) => {
-      if (err) return console.error('Error reading temp directory:', err);
-      
-      const now = Date.now();
-      const oneHourAgo = now - (60 * 60 * 1000);
-      
-      files.forEach(file => {
-        const filePath = path.join(tempDir, file);
-        fs.stat(filePath, (err, stats) => {
-          if (err) return console.error(`Error stating file ${file}:`, err);
-          
-          if (stats.mtimeMs < oneHourAgo) {
-            fs.unlink(filePath, err => {
-              if (err) console.error(`Error deleting old temp file ${file}:`, err);
-              else console.log(`Deleted old temp file: ${file}`);
-            });
-          }
-        });
-      });
-    });
-  }, 12 * 60 * 60 * 1000); // Run every 12 hours
+    const cleanupTempFiles = async () => {
+      try {
+        const tempDir = path.join(__dirname, "..", "uploads", "temp");
+        const files = await fs.promises.readdir(tempDir);
+
+        const now = Date.now();
+        const ageLimit = now - FILE_AGE_LIMIT;
+
+        const fileStats = await Promise.all(
+          files.map(async (file) => {
+            const filePath = path.join(tempDir, file);
+            try {
+              const stats = await fs.promises.stat(filePath);
+              return { file, filePath, stats };
+            } catch (err) {
+              console.error(`Error stating file ${file}:`, err);
+              return null;
+            }
+          })
+        );
+
+        // Filter out nulls and files older than the limit
+        const oldFiles = fileStats
+          .filter(item => item && item.stats.mtimeMs < ageLimit);
+
+        // Delete old files
+        await Promise.all(
+          oldFiles.map(async ({ file, filePath }) => {
+            try {
+              await fs.promises.unlink(filePath);
+              console.log(`Deleted old temp file: ${file}`);
+            } catch (err) {
+              console.error(`Error deleting old temp file ${file}:`, err);
+            }
+          })
+        );
+
+        const deletedCount = oldFiles.length;
+        if (deletedCount > 0) {
+          console.log(`Cleanup completed: ${deletedCount} files removed`);
+        }
+      } catch (err) {
+        console.error('Error during temp file cleanup:', err);
+      }
+    };
+
+    cleanupTempFiles();
+  }, CLEANUP_INTERVAL);
 }
