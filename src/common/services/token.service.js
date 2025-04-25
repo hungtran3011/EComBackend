@@ -148,7 +148,6 @@ const verifyRefreshToken = async (refreshToken) => {
   try {
     // Giải mã token không cần verify trước để lấy userId và jti
     const decoded = jwt.decode(refreshToken);
-    console.log('Decoded refresh token:', decoded);
     
     // Check for valid structure
     if (!decoded || !decoded.jti) {
