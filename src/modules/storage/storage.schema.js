@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import {ProductSchema} from "product.schema.js";
+// import {ProductSchema} from "../product/product.schema.js";
 
 /**
  * @name StorageItem

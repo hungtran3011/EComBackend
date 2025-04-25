@@ -1,15 +1,21 @@
-import {
-  getAllProductsService,
-  getProductByIdService,
-  createProductService,
-  updateProductService,
-  deleteProductService,
-  getAllCategoriesService,
-  getCategoryByIdService,
-  createCategoryService,
-  updateCategoryService,
-  deleteCategoryService,
-} from "./product.service.js";
+// import {
+//   getAllProductsService,
+//   getProductByIdService,
+//   createProductService,
+//   updateProductService,
+//   deleteProductService,
+//   getAllCategoriesService,
+//   getCategoryByIdService,
+//   createCategoryService,
+//   updateCategoryService,
+//   deleteCategoryService,
+//   getProductCountService
+// } from "./product.service.js";
+import ProductService from "./product.service.js";
+import cloudinaryService from "../../common/services/cloudinary.service.js";
+import fs from 'fs';
+import { promisify } from 'util';
+import path from 'path';
 
 /**
  * @swagger
@@ -38,7 +44,8 @@ import {
 const getAllProducts = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    const result = await getAllProductsService(parseInt(page), parseInt(limit));
+    const result = await ProductService.getAllProductsService(parseInt(page), parseInt(limit));
+    // console.log(result);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -78,12 +85,21 @@ const getAllProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await getProductByIdService(id);
+    const result = await ProductService.getProductByIdService(id);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+const getProductCount = async (req, res) => {
+  try {
+    const count = await ProductService.getProductCountService();
+    res.status(200).json({ count });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
 
 /**
  * @swagger
@@ -143,7 +159,7 @@ const createProduct = async (req, res) => {
       return res.status(401).json({ message: "Admin only" });
     }
     const productData = { ...req.body, createdBy: user._id };
-    const result = await createProductService(productData);
+    const result = await ProductService.createProductService(productData);
     res.status(201).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -220,7 +236,7 @@ const updateProduct = async (req, res) => {
     if (!user || user.role !== "admin") {
       return res.status(401).json({ message: "Admin only" });
     }
-    const result = await updateProductService(id, req.body);
+    const result = await ProductService.updateProductService(id, req.body);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -274,7 +290,7 @@ const deleteProduct = async (req, res) => {
     if (!user || user.role !== "admin") {
       return res.status(401).json({ message: "Admin only" });
     }
-    const result = await deleteProductService(id);
+    const result = await ProductService.deleteProductService(id);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -313,7 +329,7 @@ const deleteProduct = async (req, res) => {
  */
 const getAllCategories = async (req, res) => {
   try {
-    const result = await getAllCategoriesService();
+    const result = await ProductService.getAllCategoriesService();
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -362,7 +378,7 @@ const getAllCategories = async (req, res) => {
 const getCategoryById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await getCategoryByIdService(id);
+    const result = await ProductService.getCategoryByIdService(id);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -444,7 +460,7 @@ const createCategory = async (req, res) => {
       return res.status(401).json({ message: "No permission" });
     }
     const categoryData = { ...req.body, createdBy: user._id };
-    const result = await createCategoryService(categoryData);
+    const result = await ProductService.createCategoryService(categoryData);
     res.status(201).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -531,7 +547,7 @@ const updateCategory = async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: "No permission" });
     }
-    const result = await updateCategoryService(id, req.body);
+    const result = await ProductService.updateCategoryService(id, req.body);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -585,9 +601,103 @@ const deleteCategory = async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: "No permission" });
     }
-    const result = await deleteCategoryService(id);
+    const result = await ProductService.deleteCategoryService(id);
     res.status(200).json(result);
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @name uploadProductImages
+ * @description Upload multiple images for a product
+ */
+const uploadProductImages = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user } = req;
+    
+    if (!user || user.role !== "admin") {
+      return res.status(401).json({ message: "Admin only" });
+    }
+    
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "No images uploaded" });
+    }
+    
+    const uploadResults = [];
+    const unlinkAsync = promisify(fs.unlink);
+    
+    // Upload each file to Cloudinary
+    for (const file of req.files) {
+      try {
+        const result = await cloudinaryService.uploadImage(file.path, 'product');
+        uploadResults.push(result);
+        
+        // Delete the temporary file
+        await unlinkAsync(file.path);
+      } catch (error) {
+        console.error("Error uploading image %s:", file.filename, error);
+      }
+    }
+    
+    // Update product with the new images
+    const imageUrls = uploadResults.map(result => result.secure_url);
+    const result = await ProductService.addProductImagesService(id, imageUrls);
+    
+    res.status(200).json({
+      success: true,
+      message: "Images uploaded successfully",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error in uploadProductImages:", error);
+    
+    // Clean up any temporary files on error
+    if (req.files) {
+      const unlinkAsync = promisify(fs.unlink);
+      for (const file of req.files) {
+        try {
+          await unlinkAsync(file.path);
+        } catch (err) {
+          console.error("Failed to delete temporary file %s:", file.path, err);
+        }
+      }
+    }
+    
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @name deleteProductImage
+ * @description Delete a specific image from a product
+ */
+const deleteProductImage = async (req, res) => {
+  try {
+    const { productId, imageId } = req.params;
+    const { user } = req;
+    
+    if (!user || user.role !== "admin") {
+      return res.status(401).json({ message: "Admin only" });
+    }
+    
+    // Extract the public ID from the Cloudinary URL
+    const publicId = imageId;
+    
+    // Delete from Cloudinary
+    await cloudinaryService.deleteImageOrVideo(publicId);
+    
+    // Update the product document by removing this image URL
+    const result = await ProductService.removeProductImageService(productId, publicId);
+    
+    res.status(200).json({
+      success: true,
+      message: "Image deleted successfully",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error in deleteProductImage:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -603,6 +713,9 @@ const ProductControllers = {
   createCategory,
   updateCategory,
   deleteCategory,
+  getProductCount,
+  uploadProductImages,
+  deleteProductImage
 };
 
 export default ProductControllers;

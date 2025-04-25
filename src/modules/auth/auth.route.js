@@ -48,6 +48,12 @@ router.post("/sign-out", userMiddleware, AuthControllers.handleLogout)
 router.post("/refresh-token", IPRateLimiter, AuthControllers.handleRefreshToken)
 
 /**
+ * POST /auth/admin/refresh-token
+ * @description Route to refresh admin access token using refresh token cookie
+ */
+router.post("/admin/refresh-token", IPRateLimiter, AuthControllers.handleAdminRefreshToken)
+
+/**
  * POST /auth/send-otp
  * @description Route to send OTP for login
  */
@@ -69,7 +75,7 @@ router.post("/admin/sign-in", IPRateLimiter, AuthControllers.adminSignIn)
  * POST /auth/admin-sign-out
  * @description Route for admin logout
  */
-router.post("/admin-sign-out", adminMiddleware, AuthControllers.handleLogout)
+router.post("/admin/sign-out", adminMiddleware, AuthControllers.handleLogout)
 
 /**
  * POST /auth/send-password-reset-otp
