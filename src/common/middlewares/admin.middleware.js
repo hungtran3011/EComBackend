@@ -29,11 +29,11 @@ export const adminMiddleware = async (req, res, next) => {
           return res.status(403).json({ message: "Admin privileges required" });
         }
         
-        // 4. IP binding validation (optional but recommended)
-        const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-        if (decoded.clientIP && decoded.clientIP !== clientIP) {
-          return res.status(403).json({ message: "Session IP mismatch" });
-        }
+        // // 4. IP binding validation (optional but recommended)
+        // const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        // if (decoded.clientIP && decoded.clientIP !== clientIP) {
+        //   return res.status(403).json({ message: "Session IP mismatch" });
+        // }
         
         // 5. Double-check admin status in database (prevents using old tokens after role change)
         const adminUser = await User.findOne({
