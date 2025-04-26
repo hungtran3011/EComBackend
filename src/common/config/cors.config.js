@@ -8,6 +8,8 @@ const whitelist = [
   "http://localhost:5555",
 ].filter(Boolean); // Filter out undefined values
 
+console.log("CORS whitelist:", whitelist);  
+
 // Update your existing CORS configuration
 export const corsOptions = {
   origin: function (origin, callback) {
