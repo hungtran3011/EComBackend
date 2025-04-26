@@ -54,8 +54,6 @@ if (!redisService.isConnected()) {
 
 
 securityMiddleware(app);
-app.set("trust proxy", true); // trust first proxy
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

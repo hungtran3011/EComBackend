@@ -42,9 +42,7 @@ const IPRateLimiter = rateLimit({
   keyGenerator: (req) => {
     const ipAddress =
       req.headers["cf-connecting-ip"] ||
-      req.headers["x-forwarded-for"] ||
       req.socket.remoteAddress ||
-      req.ip ||
       "Unknown IP";
     const userAgent = req.headers["user-agent"] || "Unknown User Agent";
     return `${ipAddress}::${userAgent}`;
