@@ -52,43 +52,16 @@ if (!redisService.isConnected()) {
     .catch(err => console.error('Failed to initialize Redis:', err));
 }
 
-// Fix the middleware order - make sure these are in correct sequence:
 
-// Security middleware
 securityMiddleware(app);
-
-// Body parsers first
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// // Cookie parser next
-// app.use(cookieParser());
-
-// // Session middleware before CSRF
-// app.use(session({
-//   secret: process.env.SESSION_SECRET,
-//   resave: false,
-//   saveUninitialized: false,
-//   cookie: { 
-//     secure: process.env.NODE_ENV === 'production',
-//     httpOnly: true,
-//     sameSite: 'lax',
-//     maxAge: 24 * 60 * 60 * 1000 // 24 hours
-//   }
-// }));
-
-// app.use(csrfProtection())
 
 app.use(morgan('dev', {
   skip: function (req, res) { return res.statusCode < 400 }
 }))
 
-// Fix morgan configuration syntax
-// app.use(morgan("combined", {
-//   stream: fs.createWriteStream(path.join(__dirname, "logs", "access.log"), {
-//     flags: "a"
-//   })
-// }));
 
 app.use(morgan("combined"));
 
