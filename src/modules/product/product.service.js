@@ -251,30 +251,23 @@ const formatFieldValues = (fieldValues) => {
  * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy sản phẩm
  */
 export const updateProductService = async (id, updateData) => {
-  console.log(`[DEBUG] updateProductService - Starting update for product ID: ${id}`, updateData);
   
   if (!isValidMongoId(id)) {
-    console.log(`[DEBUG] updateProductService - Invalid product ID: ${id}`);
     throw new Error("Invalid product ID");
   }
 
   const existingProduct = await Product.findById(id);
   if (!existingProduct) {
-    console.log(`[DEBUG] updateProductService - Product not found with ID: ${id}`);
     throw new Error("Product not found");
   }
-  console.log(`[DEBUG] updateProductService - Found existing product:`, existingProduct);
 
   let processedData = { ...updateData };
-  console.log(`[DEBUG] updateProductService - Initial processed data:`, processedData);
   
   if (updateData.category && typeof updateData.category === 'object' && updateData.category._id) {
     processedData.category = updateData.category._id;
-    console.log(`[DEBUG] updateProductService - Updated category ID to: ${processedData.category}`);
   }
 
   if (updateData.fields && typeof updateData.fields === 'object' && !Array.isArray(updateData.fields)) {
-    console.log(`[DEBUG] updateProductService - Processing fields:`, updateData.fields);
     
     // Create a map of existing fields
     const fieldMap = {};
@@ -282,7 +275,6 @@ export const updateProductService = async (id, updateData) => {
       existingProduct.fieldValues.forEach(field => {
         fieldMap[field.name] = field.value;
       });
-      console.log(`[DEBUG] updateProductService - Existing fields map:`, fieldMap);
     }
 
     // Update the map with new values
@@ -293,7 +285,6 @@ export const updateProductService = async (id, updateData) => {
       }
     });
     
-    console.log(`[DEBUG] updateProductService - Updated fields map:`, fieldMap);
 
     // Convert map back to array format
     const updatedFieldValues = Object.entries(fieldMap).map(([name, value]) => ({
@@ -301,30 +292,23 @@ export const updateProductService = async (id, updateData) => {
       value
     }));
 
-    console.log(`[DEBUG] updateProductService - Final field values:`, updatedFieldValues);
-
     const { fields, ...dataWithoutFields } = processedData;
     processedData = { ...dataWithoutFields, fieldValues: updatedFieldValues };
-    console.log(`[DEBUG] updateProductService - Final processed data:`, processedData);
   }
   if (updateData.productImages !== undefined) {
     processedData.productImages = updateData.productImages;
-    console.log(`[DEBUG] updateProductService - Updated product images:`, updateData.productImages);
   }
 
   // Handle variation updates if provided
   if (updateData.variations && Array.isArray(updateData.variations)) {
-    console.log(`[DEBUG] updateProductService - Processing variations updates`);
     
     // Process each variation
     for (const variation of updateData.variations) {
       if (variation._id) {
         // Update existing variation
-        console.log(`[DEBUG] updateProductService - Updating existing variation ${variation._id}`);
         await updateProductVariationService(variation._id, variation);
       } else {
         // Create new variation
-        console.log(`[DEBUG] updateProductService - Creating new variation for product ${id}`);
         variation.product = id;
         await createProductVariationService(id, variation);
       }
@@ -336,11 +320,8 @@ export const updateProductService = async (id, updateData) => {
   }
 
   try {
-    console.log(`[DEBUG] updateProductService - Validating data before update`);
     const validatedData = ProductValidationSchema.partial().parse(processedData);
-    console.log(`[DEBUG] updateProductService - Validated data:`, validatedData);
     
-    console.log(`[DEBUG] updateProductService - Performing database update`);
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
       { $set: validatedData },
@@ -348,24 +329,18 @@ export const updateProductService = async (id, updateData) => {
     ).populate('category');
 
     if (!updatedProduct) {
-      console.log(`[DEBUG] updateProductService - Update failed, no product returned`);
       throw new Error("Failed to update product");
     }
-    console.log(`[DEBUG] updateProductService - Updated product:`, updatedProduct);
 
     const result = updatedProduct.toObject();
     result.fields = formatFieldValues(result.fieldValues || []);
-    console.log(`[DEBUG] updateProductService - Formatted result with fields:`, result);
 
     const cacheKey = `product:${id}`;
     await redisService.set(cacheKey, result, 1800);
-    console.log(`[DEBUG] updateProductService - Updated cache for product ${id}`);
 
     return result;
   } catch (error) {
-    console.log(`[DEBUG] updateProductService - Error during update:`, error);
     if (error.name === 'ZodError') {
-      console.log(`[DEBUG] updateProductService - Validation error:`, error.errors);
       console.error('Validation error:', error.errors);
       throw new Error(`Validation failed: ${error.errors.map(e => e.message).join(', ')}`);
     }
@@ -659,52 +634,39 @@ export const getProductVariationsService = async (productId) => {
  * @returns {Promise<Object>} Updated variation
  */
 export const updateProductVariationService = async (variationId, updateData) => {
-  console.log(`[DEBUG] updateProductVariationService - Starting update for variation ID: ${variationId}`);
-  console.log(`[DEBUG] updateProductVariationService - Update data:`, updateData);
 
   if (!isValidMongoId(variationId)) {
-    console.log(`[DEBUG] updateProductVariationService - Invalid variation ID: ${variationId}`);
     throw new Error("Invalid variation ID");
   }
 
   // Get existing variation to ensure it exists
   const existingVariation = await ProductVariation.findById(variationId);
   if (!existingVariation) {
-    console.log(`[DEBUG] updateProductVariationService - Variation not found with ID: ${variationId}`);
     throw new Error("Variation not found");
   }
-  console.log(`[DEBUG] updateProductVariationService - Found existing variation:`, existingVariation);
 
   // Validate update data
   try {
-    console.log(`[DEBUG] updateProductVariationService - Validating update data`);
     const validatedData = validateProductVariation({
       ...updateData,
       _id: variationId,
       product: existingVariation.product
     });
-    console.log(`[DEBUG] updateProductVariationService - Validated data:`, validatedData);
 
     // Update the variation
-    console.log(`[DEBUG] updateProductVariationService - Updating variation in database`);
     const variation = await ProductVariation.findByIdAndUpdate(
       variationId,
       { $set: validatedData },
       { new: true }
     );
-    console.log(`[DEBUG] updateProductVariationService - Updated variation:`, variation);
 
     // Update storage if stock changed
     if (updateData.stock !== undefined) {
-      console.log(`[DEBUG] updateProductVariationService - Updating stock to ${updateData.stock}`);
       await StorageService.updateVariationQuantity(variation._id, variation.stock);
-      console.log(`[DEBUG] updateProductVariationService - Stock update completed`);
     }
 
-    console.log(`[DEBUG] updateProductVariationService - Successfully completed update for variation ${variationId}`);
     return variation.toObject();
   } catch (error) {
-    console.log(`[DEBUG] updateProductVariationService - Error during update:`, error);
     throw error;
   }
 };

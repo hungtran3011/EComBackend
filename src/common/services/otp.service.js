@@ -148,7 +148,6 @@ const sendOTPByEmail = async (email, otp, purpose) => {
  */
 const sendOTPBySMS = async (phoneNumber, otp, purpose) => {
   // TODO: Tích hợp với nhà cung cấp SMS thực tế
-  console.log(`[DEBUG] Gửi OTP ${otp} đến số điện thoại ${phoneNumber} cho mục đích ${purpose}`);
 
   // Trả về true để giả lập thành công trong môi trường phát triển
   return true;
