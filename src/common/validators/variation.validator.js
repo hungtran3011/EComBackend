@@ -31,19 +31,16 @@ export const validateAttributeValue = (type, value) => {
 export const VariationAttributeSchema = z.object({
   name: z.string().min(1, "Attribute name is required"),
   type: z.enum(['String', 'Number', 'Color', 'Boolean', 'Size']),
-  value: z.any().refine(
-    (val, ctx) => {
-      const type = ctx.path[0].type;
-      const error = validateAttributeValue(type, val);
-      return error === null;
-    },
-    {
-      message: (val, ctx) => {
-        const type = ctx.path[0].type;
-        return validateAttributeValue(type, val) || "Invalid attribute value";
-      }
-    }
-  )
+  value: z.any()
+}).superRefine((data, ctx) => {
+  const { type, value } = data;
+  const error = validateAttributeValue(type, value);
+  if (error) {
+    ctx.addIssue({
+      path: ['value'],
+      message: error,
+    });
+  }
 });
 
 export const ProductVariationSchema = z.object({
