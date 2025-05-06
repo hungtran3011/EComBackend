@@ -155,12 +155,32 @@ const getProductCount = async (req, res) => {
 const createProduct = async (req, res) => {
   try {
     const user = req.user;
-    if (!user || !user.isAdmin) {
+    if (!user || user.role !== "admin") {
       return res.status(401).json({ message: "Admin only" });
     }
-    const productData = { ...req.body, createdBy: user._id };
+    
+    // Prepare product data with variations if provided
+    const productData = { 
+      ...req.body, 
+      createdBy: user._id,
+      // If variations are provided, ensure they're properly formatted
+      variations: req.body.variations ? 
+        req.body.variations.map(v => ({
+          ...v,
+          product: null // Will be set in the service
+        }))
+        : undefined
+    };
+    
     const result = await ProductService.createProductService(productData);
-    res.status(201).json(result);
+    
+    // Get the created variations to include in the response
+    const variations = await ProductService.getProductVariationsService(result._id);
+    
+    res.status(201).json({
+      ...result,
+      variations
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -702,6 +722,80 @@ const deleteProductImage = async (req, res) => {
   }
 };
 
+/**
+ * @name createProductVariation
+ * @description Create a new variation for a product
+ */
+const createProductVariation = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { user } = req;
+    
+    if (!user || user.role !== "admin") {
+      return res.status(401).json({ message: "Admin only" });
+    }
+    
+    const result = await ProductService.createProductVariationService(productId, req.body);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @name getProductVariations
+ * @description Get all variations for a product
+ */
+const getProductVariations = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const variations = await ProductService.getProductVariationsService(productId);
+    res.status(200).json(variations);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @name updateProductVariation
+ * @description Update a specific product variation
+ */
+const updateProductVariation = async (req, res) => {
+  try {
+    const { variationId } = req.params;
+    const { user } = req;
+    
+    if (!user || user.role !== "admin") {
+      return res.status(401).json({ message: "Admin only" });
+    }
+    
+    const result = await ProductService.updateProductVariationService(variationId, req.body);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * @name deleteProductVariation
+ * @description Delete a specific product variation
+ */
+const deleteProductVariation = async (req, res) => {
+  try {
+    const { variationId } = req.params;
+    const { user } = req;
+    
+    if (!user || user.role !== "admin") {
+      return res.status(401).json({ message: "Admin only" });
+    }
+    
+    const result = await ProductService.deleteProductVariationService(variationId);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const ProductControllers = {
   getAllProducts,
   getProductById,
@@ -715,7 +809,11 @@ const ProductControllers = {
   deleteCategory,
   getProductCount,
   uploadProductImages,
-  deleteProductImage
+  deleteProductImage,
+  createProductVariation,
+  getProductVariations,
+  updateProductVariation,
+  deleteProductVariation
 };
 
 export default ProductControllers;

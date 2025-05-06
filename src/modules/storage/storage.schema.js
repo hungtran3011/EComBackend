@@ -26,3 +26,14 @@ export const StorageItemModel = mongoose.model('StorageItem', StorageItemSchema)
 export const StorageSchema = mongoose.Schema({
   items: [StorageItemSchema],
 }, {timestamps: true})
+
+export const VariationStorageSchema = mongoose.Schema({
+  variation: {type: mongoose.Schema.Types.ObjectId, ref: 'ProductVariation', required: true},
+  quantity: {type: Number, required: true, default: 0},
+}, {timestamps: true});
+
+const VariationStorageModel = mongoose.model('VariationStorage', VariationStorageSchema);
+
+export {
+  VariationStorageModel
+};

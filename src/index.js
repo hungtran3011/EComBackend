@@ -33,6 +33,8 @@ fs.existsSync(uploadsDirectory) || fs.mkdirSync(uploadsDirectory, { recursive: t
 const app = express();
 const port = process.env.PORT || 3001;
 
+// app.set('trust proxy', true);
+
 const queryString = process.env.MONGO_READ_WRITE_URI;
 
 mongoose.connect(queryString, {

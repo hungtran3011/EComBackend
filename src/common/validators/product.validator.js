@@ -110,12 +110,26 @@ export const ProductValidationSchema = z.object({
     .max(5000, "Description too long")
     .optional()
     .transform(val => val ? val.trim() : val),
+
+  sku: z.string()
+    .min(1, "SKU cannot be empty")
+    .max(100, "SKU too long")
+    .transform(val => val.trim()),
+
+  images: z.array(z.string().url("Invalid image URL"))
+    .max(10, "Too many images")
+    .optional()
+    .transform(val => val ? val.map(image => image.trim()) : val),
+
+  stock: z.number()
+    .int("Stock must be an integer")
+    .positive("Stock must be positive")
+    .transform(val => Math.round(val)),
     
   price: z.number()
     .positive("Price must be positive")
-    .transform(val => Math.round(val * 100) / 100), // Round to 2 decimal places
+    .transform(val => Math.round(val * 100) / 100),
     
-  // Accept either string ID or ObjectID instance
   category: z.union([
     z.string().min(1, "Category ID required"),
     z.instanceof(mongoose.Types.ObjectId),

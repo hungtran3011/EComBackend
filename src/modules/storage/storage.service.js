@@ -28,9 +28,23 @@ const bulkUpdateStorage = async (items) => {
   return await StorageItemModel.bulkWrite(bulkOperations);
 };
 
+const updateVariationQuantity = async (variationId, quantity) => {
+  return await VariationStorageModel.findOneAndUpdate(
+    { variation: variationId },
+    { quantity },
+    { new: true, upsert: true }
+  );
+};
+
+const getVariationQuantity = async (variationId) => {
+  return await VariationStorageModel.findOne({ variation: variationId });
+};
+
 export default {
   getStorageItems,
   getProductQuantity,
   updateProductQuantity,
   bulkUpdateStorage,
+  updateVariationQuantity,
+  getVariationQuantity,
 };
