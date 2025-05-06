@@ -1,4 +1,4 @@
-import { StorageItemModel } from "./storage.schema.js";
+import { StorageItemModel, VariationStorageModel } from "./storage.schema.js";
 
 const getStorageItems = async () => {
   return await StorageItemModel.find().populate("product");

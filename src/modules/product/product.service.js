@@ -115,11 +115,8 @@ export const createProductService = async (productData) => {
   // Validate basic product data
   const { category, fields, ...basicProductData } = otherData;
 
-  // Check if category exists
   let categoryObjectId;
-  // if (!validateObjectId(categoryObjectId)) {
-  //   throw new Error("Invalid category ID");
-  // }
+
   try {
     categoryObjectId = validateObjectId(category?._id ?? category);
   }
@@ -128,16 +125,13 @@ export const createProductService = async (productData) => {
     throw new Error("Invalid category ID");
   }
 
-  // Now use the categoryObjectId for the database query
-  const categoryDoc = await Category.findById(categoryObjectId);
+  const categoryDoc = await Category.findOne({ _id: { $eq: categoryObjectId } });
   if (!categoryDoc) {
     throw new Error("Không tìm thấy danh mục");
   }
 
-  // Process dynamic fields
   let fieldValues = [];
   if (fields && Object.keys(fields).length > 0) {
-    // Create map of category fields for validation
     const categoryFieldsMap = {};
     categoryDoc.fields.forEach(field => {
       categoryFieldsMap[field.name] = {
@@ -146,7 +140,6 @@ export const createProductService = async (productData) => {
       };
     });
 
-    // Validate required fields
     const missingRequiredFields = [];
     categoryDoc.fields.forEach(field => {
       if (field.required && fields[field.name] === undefined) {
@@ -158,11 +151,9 @@ export const createProductService = async (productData) => {
       throw new Error(`Thiếu các trường bắt buộc: ${missingRequiredFields.join(', ')}`);
     }
 
-    // Process and validate provided fields
     for (const [fieldName, fieldValue] of Object.entries(fields)) {
       const categoryField = categoryFieldsMap[fieldName];
 
-      // Check if field is defined in category
       if (!categoryField) {
         throw new Error(`Trường "${fieldName}" không được định nghĩa trong danh mục này`);
       }
@@ -197,14 +188,11 @@ export const createProductService = async (productData) => {
   const addedProduct = new Product(productToCreate);
   await addedProduct.save();
 
-  // Format response to include fields as object
   const result = addedProduct.toObject();
   result.fields = formatFieldValues(result.fieldValues);
   delete result.fieldValues;
 
-  // Create default variation if none provided
   if (!variations || !Array.isArray(variations) || variations.length === 0) {
-    // Create a default variation with the same price as the base product
     await new ProductVariation({
       product: addedProduct._id,
       name: `${addedProduct.name} - Default`,
@@ -256,7 +244,7 @@ export const updateProductService = async (id, updateData) => {
     throw new Error("Invalid product ID");
   }
 
-  const existingProduct = await Product.findById(id);
+  const existingProduct = await Product.findOne({ _id: { $eq: id } });
   if (!existingProduct) {
     throw new Error("Product not found");
   }
@@ -322,8 +310,8 @@ export const updateProductService = async (id, updateData) => {
   try {
     const validatedData = ProductValidationSchema.partial().parse(processedData);
     
-    const updatedProduct = await Product.findByIdAndUpdate(
-      id,
+    const updatedProduct = await Product.findOneAndUpdate(
+      { _id: { $eq: id } },
       { $set: validatedData },
       { new: true, runValidators: true }
     ).populate('category');
@@ -357,7 +345,7 @@ export const updateProductService = async (id, updateData) => {
  */
 export const deleteProductService = async (id) => {
   if (!isValidMongoId(id)) throw new Error("Invalid product ID");
-  const deletedProduct = await Product.findByIdAndDelete(id);
+  const deletedProduct = await Product.findOneAndDelete({ _id: { $eq: id } });
   if (!deletedProduct) throw new Error("Product not found");
 
   // Delete from cache
@@ -388,7 +376,7 @@ export const getAllCategoriesService = async () => {
  */
 export const getCategoryByIdService = async (id) => {
   if (!isValidMongoId(id)) throw new Error("Invalid category ID");
-  const category = await Category.findById(id);
+  const category = await Category.findOne({ _id: { $eq: id } });
   if (!category) throw new Error("Category not found");
   return CategoryValidationSchema.parse(category);
 };
@@ -458,8 +446,8 @@ export const updateCategoryService = async (id, updateData) => {
 
     console.log(`Updating category %s with validated data:`, id, validatedData);
 
-    const updatedCategory = await Category.findByIdAndUpdate(
-      id,
+    const updatedCategory = await Category.findOneAndUpdate(
+      { _id: { $eq: id } },
       { $set: validatedData },
       { new: true }
     );
@@ -490,7 +478,7 @@ export const updateCategoryService = async (id, updateData) => {
  */
 export const deleteCategoryService = async (id) => {
   if (!isValidMongoId(id)) throw new Error("Invalid category ID");
-  const deletedCategory = await Category.findByIdAndDelete(id);
+  const deletedCategory = await Category.findOneAndDelete({ _id: { $eq: id } });
   if (!deletedCategory) throw new Error("Category not found");
   return { message: "Category deleted successfully" };
 };
@@ -508,7 +496,7 @@ export const addProductImagesService = async (id, imageUrls) => {
   }
 
   // Find the product first
-  const product = await Product.findById(id);
+  const product = await Product.findOne({ _id: { $eq: id } });
   if (!product) {
     throw new Error("Product not found");
   }
@@ -518,8 +506,8 @@ export const addProductImagesService = async (id, imageUrls) => {
   const updatedImages = [...currentImages, ...imageUrls];
 
   // Update the product
-  const updatedProduct = await Product.findByIdAndUpdate(
-    id,
+  const updatedProduct = await Product.findOneAndUpdate(
+    { _id: { $eq: id } },
     { $set: { productImages: updatedImages } },
     { new: true }
   );
@@ -546,7 +534,7 @@ export const removeProductImageService = async (productId, imageId) => {
   }
 
   // Find the product first
-  const product = await Product.findById(productId);
+  const product = await Product.findOne({ _id: { $eq: productId } });
   if (!product) {
     throw new Error("Product not found");
   }
@@ -559,8 +547,8 @@ export const removeProductImageService = async (productId, imageId) => {
   });
 
   // Update the product
-  const updatedProduct = await Product.findByIdAndUpdate(
-    productId,
+  const updatedProduct = await Product.findOneAndUpdate(
+    { _id: { $eq: productId } },
     { $set: { productImages: updatedImages } },
     { new: true }
   );
@@ -586,7 +574,7 @@ export const createProductVariationService = async (productId, variationData) =>
     throw new Error("Invalid product ID");
   }
 
-  const product = await Product.findById(productId);
+  const product = await Product.findOne({ _id: { $eq: productId } });
   if (!product) {
     throw new Error("Product not found");
   }
@@ -602,7 +590,7 @@ export const createProductVariationService = async (productId, variationData) =>
   await variation.save();
 
   // Update the parent product to indicate it has variations
-  await Product.findByIdAndUpdate(productId, { hasVariations: true });
+  await Product.findOneAndUpdate({ _id: { $eq: productId } }, { hasVariations: true });
 
   // Update storage if stock is provided
   if (variation.stock !== undefined) {
@@ -640,7 +628,7 @@ export const updateProductVariationService = async (variationId, updateData) => 
   }
 
   // Get existing variation to ensure it exists
-  const existingVariation = await ProductVariation.findById(variationId);
+  const existingVariation = await ProductVariation.findOne({ _id: { $eq: variationId } });
   if (!existingVariation) {
     throw new Error("Variation not found");
   }
@@ -654,8 +642,8 @@ export const updateProductVariationService = async (variationId, updateData) => 
     });
 
     // Update the variation
-    const variation = await ProductVariation.findByIdAndUpdate(
-      variationId,
+    const variation = await ProductVariation.findOneAndUpdate(
+      { _id: { $eq: variationId } },
       { $set: validatedData },
       { new: true }
     );
@@ -694,7 +682,7 @@ export const deleteProductVariationService = async (variationId) => {
 
   if (remainingVariations === 0) {
     // Update the parent product to indicate it no longer has variations
-    await Product.findByIdAndUpdate(variation.product, { hasVariations: false });
+    await Product.findOneAndUpdate({ _id: { $eq: variation.product } }, { hasVariations: false });
   }
 
   return { message: "Variation deleted successfully" };

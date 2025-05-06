@@ -1,16 +1,3 @@
-// import {
-//   getAllProductsService,
-//   getProductByIdService,
-//   createProductService,
-//   updateProductService,
-//   deleteProductService,
-//   getAllCategoriesService,
-//   getCategoryByIdService,
-//   createCategoryService,
-//   updateCategoryService,
-//   deleteCategoryService,
-//   getProductCountService
-// } from "./product.service.js";
 import ProductService from "./product.service.js";
 import cloudinaryService from "../../common/services/cloudinary.service.js";
 import fs from 'fs';
