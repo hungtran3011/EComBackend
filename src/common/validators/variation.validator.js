@@ -45,7 +45,12 @@ export const VariationAttributeSchema = z.object({
 
 export const ProductVariationSchema = z.object({
   _id: z.string().optional(),
-  product: z.string().refine(isValidMongoId, "Invalid product ID").optional(),
+  product: z.union([
+    z.string().refine(isValidMongoId, "Invalid product ID"),
+    z.object({
+      _id: z.any().transform(val => val.toString())
+    }).transform(val => val._id)
+  ]).optional(),
   name: z.string().min(1, "Variation name is required"),
   price: z.number().positive("Price must be positive"),
   stock: z.number().int().nonnegative().default(0),

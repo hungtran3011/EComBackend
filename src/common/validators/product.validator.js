@@ -116,7 +116,7 @@ export const ProductValidationSchema = z.object({
     .max(100, "SKU too long")
     .transform(val => val.trim()),
 
-  images: z.array(z.string().url("Invalid image URL"))
+  productImages: z.array(z.string().url("Invalid image URL"))
     .max(10, "Too many images")
     .optional()
     .transform(val => val ? val.map(image => image.trim()) : val),

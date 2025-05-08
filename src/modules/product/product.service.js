@@ -12,6 +12,9 @@ import mongoose from "mongoose";
 import validateObjectId from "../../common/validators/objectId.validator.js";
 import { validateProductVariation } from "../../common/validators/variation.validator.js";
 import StorageService from "../storage/storage.service.js";
+import { debugLogger } from "../../common/middlewares/debug-logger.js";
+
+const logger = debugLogger("product-service");
 
 /**
  * @name getAllProductsService
@@ -239,7 +242,7 @@ const formatFieldValues = (fieldValues) => {
  * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy sản phẩm
  */
 export const updateProductService = async (id, updateData) => {
-  
+
   if (!isValidMongoId(id)) {
     throw new Error("Invalid product ID");
   }
@@ -250,13 +253,13 @@ export const updateProductService = async (id, updateData) => {
   }
 
   let processedData = { ...updateData };
-  
+
   if (updateData.category && typeof updateData.category === 'object' && updateData.category._id) {
     processedData.category = updateData.category._id;
   }
 
   if (updateData.fields && typeof updateData.fields === 'object' && !Array.isArray(updateData.fields)) {
-    
+
     // Create a map of existing fields
     const fieldMap = {};
     if (existingProduct.fieldValues && existingProduct.fieldValues.length > 0) {
@@ -272,7 +275,7 @@ export const updateProductService = async (id, updateData) => {
         fieldMap[name] = value;
       }
     });
-    
+
 
     // Convert map back to array format
     const updatedFieldValues = Object.entries(fieldMap).map(([name, value]) => ({
@@ -289,7 +292,7 @@ export const updateProductService = async (id, updateData) => {
 
   // Handle variation updates if provided
   if (updateData.variations && Array.isArray(updateData.variations)) {
-    
+
     // Process each variation
     for (const variation of updateData.variations) {
       if (variation._id) {
@@ -301,7 +304,7 @@ export const updateProductService = async (id, updateData) => {
         await createProductVariationService(id, variation);
       }
     }
-    
+
     // Remove variations from updateData to avoid processing them in the main update
     const { variations, ...dataWithoutVariations } = processedData;
     processedData = dataWithoutVariations;
@@ -309,7 +312,7 @@ export const updateProductService = async (id, updateData) => {
 
   try {
     const validatedData = ProductValidationSchema.partial().parse(processedData);
-    
+
     const updatedProduct = await Product.findOneAndUpdate(
       { _id: { $eq: id } },
       { $set: validatedData },
@@ -622,24 +625,36 @@ export const getProductVariationsService = async (productId) => {
  * @returns {Promise<Object>} Updated variation
  */
 export const updateProductVariationService = async (variationId, updateData) => {
+  logger.debug(`Starting updateProductVariationService for variation: ${variationId}`);
+  logger.debug("Update data received:", updateData);
 
   if (!isValidMongoId(variationId)) {
+    logger.error(`Invalid variation ID format: ${variationId}`);
     throw new Error("Invalid variation ID");
   }
+  logger.debug("Variation ID validated successfully");
 
   // Get existing variation to ensure it exists
+  logger.debug(`Fetching existing variation with ID: ${variationId}`);
   const existingVariation = await ProductVariation.findOne({ _id: { $eq: variationId } });
+  
   if (!existingVariation) {
+    logger.error(`Variation not found with ID: ${variationId}`);
     throw new Error("Variation not found");
   }
+  logger.debug(`Found variation: ${existingVariation._id}, product: ${existingVariation.product}`);
 
   // Validate update data
   try {
+    logger.debug("Validating variation data");
     const validatedData = validateProductVariation({
       ...updateData,
       _id: variationId,
       product: existingVariation.product
     });
+
+    logger.debug("Data validation successful", validatedData);
+    logger.debug(`Updating variation in database: ${variationId}`);
 
     // Update the variation
     const variation = await ProductVariation.findOneAndUpdate(
@@ -648,13 +663,28 @@ export const updateProductVariationService = async (variationId, updateData) => 
       { new: true }
     );
 
+    if (!variation) {
+      logger.error(`Database update failed for variation: ${variationId}`);
+      throw new Error("Failed to update variation");
+    }
+    
+    logger.debug(`Variation ${variationId} updated successfully in database`);
+    logger.debug(`Updated fields: ${Object.keys(validatedData).join(', ')}`);
+
     // Update storage if stock changed
     if (updateData.stock !== undefined) {
+      logger.debug(`Stock changed to ${updateData.stock}, updating storage for variation: ${variation._id}`);
       await StorageService.updateVariationQuantity(variation._id, variation.stock);
+      logger.debug("Storage quantity updated successfully");
+    } else {
+      logger.debug("Stock unchanged, skipping storage update");
     }
-
+    
+    logger.debug(`Returning updated variation: ${variation._id}`);
     return variation.toObject();
   } catch (error) {
+    logger.error(`Error updating variation ${variationId}:`, error);
+    logger.error(`Error stack: ${error.stack}`);
     throw error;
   }
 };
@@ -676,8 +706,8 @@ export const deleteProductVariationService = async (variationId) => {
   }
 
   // Check if this was the last variation for the product
-  const remainingVariations = await ProductVariation.countDocuments({ 
-    product: variation.product 
+  const remainingVariations = await ProductVariation.countDocuments({
+    product: variation.product
   });
 
   if (remainingVariations === 0) {

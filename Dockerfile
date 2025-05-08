@@ -17,7 +17,7 @@ COPY . .
 # -----------------------------
 # Production Stage
 # -----------------------------
-FROM node:22-alpine AS production
+FROM node:slim AS production
 
 # Set environment variables
 ENV NODE_ENV=production

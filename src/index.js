@@ -6,8 +6,7 @@ import morgan from "morgan";
 import fs from 'fs';
 import path from "path";
 import { fileURLToPath } from 'url';
-import cookieParser from "cookie-parser";
-import session from "express-session";
+import { httpDebugLogger } from "./common/middlewares/debug-logger.js";
 
 import { corsOptions } from "./common/config/cors.config.js";
 import { MainRouter } from "./api/routes.js";
@@ -60,12 +59,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-app.use(morgan('dev', {
-  skip: function (req, res) { return res.statusCode < 400 }
-}))
-
-
-app.use(morgan("combined"));
+app.use(morgan("combined"))
+app.use(httpDebugLogger);
 
 app.use(cors(corsOptions));
 
