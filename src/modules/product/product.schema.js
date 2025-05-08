@@ -99,7 +99,7 @@ export const ProductFieldValueSchema = mongoose.Schema({
 export const ProductSchema = mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, required: false },
-  price: { type: Number, required: true },
+  price: { type: Number, required: true }, // Base price
   sku: { type: String, required: false },
   stock: { type: Number, required: false },
   status: { type: String, required: false },
@@ -108,13 +108,14 @@ export const ProductSchema = mongoose.Schema({
     ref: 'Category', 
     required: true 
   },
-  productImages: { // Fix typo: image -> images
-    type: [String], // Changed to array of strings for multiple images
+  productImages: {
+    type: [String],
     required: false,
   },
-  fieldValues: [ProductFieldValueSchema], // Replace fields with fieldValues
+  fieldValues: [ProductFieldValueSchema],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-}, {timestamps: true}) // Fix typo: timestamp -> timestamps
+  hasVariations: { type: Boolean, default: false }, // Indicates whether this product has variations
+}, {timestamps: true})
 
 /**
  * @name ProductModel
@@ -127,4 +128,54 @@ const ProductModel = mongoose.model(
   ProductSchema
 );
 
-export {ProductModel as Product, CategoryModel as Category};
+/**
+ * @name VariationAttributeSchema
+ * @description Schema for defining attributes with type information
+ */
+export const VariationAttributeSchema = mongoose.Schema({
+  name: { type: String, required: true },
+  type: { 
+    type: String, 
+    required: true,
+    enum: ['String', 'Number', 'Color', 'Boolean', 'Size'] 
+  },
+  value: { type: mongoose.Schema.Types.Mixed, required: true }
+});
+
+/**
+ * @name ProductVariationSchema
+ * @author hungtran3011
+ * @description Schema for product variations with typed attributes
+ * @type {mongoose.Schema}
+ * @property {mongoose.Schema.Types.ObjectId} product - Reference to the parent product
+ * @property {String} name - Name of this variation (e.g. "iPhone 13 Pro - 256GB - Silver")
+ * @property {Number} price - Specific price for this variation
+ * @property {Number} stock - Available stock for this variation
+ * @property {String} sku - SKU code for this variation
+ * @property {Array<VariationAttributeSchema>} attributes - List of attributes for this variation
+ * @property {Boolean} isDefault - Indicates if this is the default variation
+ */
+export const ProductVariationSchema = mongoose.Schema({
+  product: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Product', 
+    required: true 
+  },
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  stock: { type: Number, default: 0 },
+  sku: { type: String },
+  attributes: [VariationAttributeSchema],
+  isDefault: { type: Boolean, default: false },
+}, {timestamps: true});
+
+const ProductVariationModel = mongoose.model(
+  'ProductVariation', 
+  ProductVariationSchema
+);
+
+export {
+  ProductModel as Product, 
+  CategoryModel as Category,
+  ProductVariationModel as ProductVariation
+};

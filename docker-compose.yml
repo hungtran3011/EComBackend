@@ -2,6 +2,7 @@ version: '3.8'
 name: ecom-backend
 services:
   api:
+    image: ecom-backend
     build: .
     ports:
       - "8080:8080"

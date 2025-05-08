@@ -40,10 +40,8 @@ const IPRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   keyGenerator: (req) => {
-    const ipAddress =
-      req.headers["cf-connecting-ip"] ||
-      req.socket.remoteAddress ||
-      "Unknown IP";
+    // Use req.ip which properly respects the trust proxy setting
+    const ipAddress = req.ip || "Unknown IP";
     const userAgent = req.headers["user-agent"] || "Unknown User Agent";
     return `${ipAddress}::${userAgent}`;
   },

@@ -6,8 +6,7 @@ import morgan from "morgan";
 import fs from 'fs';
 import path from "path";
 import { fileURLToPath } from 'url';
-import cookieParser from "cookie-parser";
-import session from "express-session";
+import { httpDebugLogger } from "./common/middlewares/debug-logger.js";
 
 import { corsOptions } from "./common/config/cors.config.js";
 import { MainRouter } from "./api/routes.js";
@@ -32,6 +31,8 @@ fs.existsSync(uploadsDirectory) || fs.mkdirSync(uploadsDirectory, { recursive: t
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+// app.set('trust proxy', true);
 
 const queryString = process.env.MONGO_READ_WRITE_URI;
 
@@ -58,12 +59,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-app.use(morgan('dev', {
-  skip: function (req, res) { return res.statusCode < 400 }
-}))
-
-
-app.use(morgan("combined"));
+app.use(morgan("combined"))
+app.use(httpDebugLogger);
 
 app.use(cors(corsOptions));
 

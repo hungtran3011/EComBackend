@@ -65,4 +65,10 @@ router.delete(
   ProductControllers.deleteProductImage
 );
 
+// Variation routes
+router.get("/:productId/variations", IPRateLimiter, ProductControllers.getProductVariations);
+router.post("/:productId/variations", IPRateLimiter, adminMiddleware, ProductControllers.createProductVariation);
+router.put("/variations/:variationId", IPRateLimiter, adminMiddleware, ProductControllers.updateProductVariation);
+router.delete("/variations/:variationId", IPRateLimiter, adminMiddleware, ProductControllers.deleteProductVariation);
+
 export { router as ProductRouter };

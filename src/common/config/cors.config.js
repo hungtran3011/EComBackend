@@ -5,7 +5,7 @@ config();
 const whitelist = [
   process.env.FRONTEND_URL,
   process.env.ADMIN_URL,
-  "http://localhost:5555",
+  process.env.BACKEND_URL,
 ].filter(Boolean);
 
 
