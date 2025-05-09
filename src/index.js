@@ -32,7 +32,7 @@ fs.existsSync(uploadsDirectory) || fs.mkdirSync(uploadsDirectory, { recursive: t
 const app = express();
 const port = process.env.PORT || 3001;
 
-// app.set('trust proxy', true);
+app.set('trust proxy', true);
 
 const queryString = process.env.MONGO_READ_WRITE_URI;
 
@@ -59,7 +59,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-app.use(morgan("combined"))
+app.use(morgan(":method :url :status - :response-time ms"));
 app.use(httpDebugLogger);
 
 app.use(cors(corsOptions));

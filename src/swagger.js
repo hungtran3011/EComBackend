@@ -3,6 +3,9 @@ import swaggerUi from 'swagger-ui-express';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import express from 'express';
+import { config } from 'dotenv';
+
+config()
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -26,7 +29,7 @@ const swaggerDefinition = {
   },
   servers: [
     {
-      url: 'http://localhost:8080/api',
+      url: process.env.BACKEND_URL || 'http://localhost:8080/api',
       description: 'Development server',
     },
   ],

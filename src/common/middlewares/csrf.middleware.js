@@ -18,7 +18,7 @@ export const csrfProtection = (options = {}) => {
     cookie: {
       key: 'csrf-token',
       path: '/',
-      httpOnly: false, // Must be accessible to JavaScript
+      httpOnly: false,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       maxAge: 3600 * 24 // 24 hours

@@ -5,7 +5,12 @@ import xssClean from "xss-clean";
 
 export const securityMiddleware = (app) => {
   // Apply Helmet (sets various HTTP headers)
-  app.use(helmet());
+  app.use(helmet({
+    directives: {
+      defaultSrc: ["'self'"],
+    }
+  }  
+  ));
   
   // Prevent MongoDB Injection
   app.use(mongoSanitize());

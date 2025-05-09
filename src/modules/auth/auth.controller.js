@@ -2,9 +2,9 @@ import AuthService from "./auth.service.js";
 import otpService from '../../common/services/otp.service.js';
 import mailService from '../../common/services/mail.service.js';
 import { validatePassword } from "../../common/validators/password.validator.js";
+import { debugLogger } from "../../common/middlewares/debug-logger.js";
 
-
-
+const logger = debugLogger("auth-controller");
 
 
 /**
@@ -28,7 +28,7 @@ const registerUser = async (req, res) => {
         phoneNumber: '[REDACTED]',
         email: '[REDACTED]',
       };
-      console.log('Register request body:', JSON.stringify(sanitizedBody));
+      logger.debug("Register request body:", JSON.stringify(sanitizedBody));
     }
     // Validate required fields before passing to service
     const { name, email, phoneNumber, password } = req.body;
