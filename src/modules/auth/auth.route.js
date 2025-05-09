@@ -161,7 +161,9 @@ router.get("/csrf-token", async (req, res) => {
   try {
     // Check for existing token
     let csrfToken = req.cookies['csrf-token'];
-    logger.debug("CSRF token from cookie:", csrfToken);
+    logger.debug("CSRF token from cookie: [redacted]");
+    // Don't log the actual token value
+    logger.debug("CSRF token from cookie: [present]", csrfToken ? true : false);
     
     // If no token exists, generate a new one
     if (!csrfToken) {

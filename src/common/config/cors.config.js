@@ -48,6 +48,5 @@ export const corsOptions = {
     'Authorization', 
     'X-CSRF-Token',
     "Cache-Control",
-    'Access-Control-Allow-Origin',
   ],
 };
