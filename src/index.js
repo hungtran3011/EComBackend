@@ -59,7 +59,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-app.use(morgan("combined"))
+app.use(morgan(":method :url :status - :response-time ms"));
 app.use(httpDebugLogger);
 
 app.use(cors(corsOptions));

@@ -42,11 +42,12 @@ export const corsOptions = {
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type', 
     'Authorization', 
     'X-CSRF-Token',
     "Cache-Control",
+    'Access-Control-Allow-Origin',
   ],
 };

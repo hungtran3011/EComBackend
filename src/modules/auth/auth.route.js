@@ -5,8 +5,10 @@ import { userMiddleware, adminMiddleware } from "../user/user.middleware.js"
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import {csrfProtection} from "../../common/middlewares/csrf.middleware.js"
+import { debugLogger } from "../../common/middlewares/debug-logger.js";
 
 const router = Router()
+const logger = debugLogger("auth-route")
 
 // Sử dụng cookie-parser để đọc cookies
 router.use(cookieParser());
@@ -159,13 +161,16 @@ router.get("/csrf-token", async (req, res) => {
   try {
     // Check for existing token
     let csrfToken = req.cookies['csrf-token'];
+    logger.debug("CSRF token from cookie:", csrfToken);
     
     // If no token exists, generate a new one
     if (!csrfToken) {
+      logger.debug("No CSRF token found, generating a new one...");
       const { generateCsrfToken } = await import('../../common/middlewares/csrf.middleware.js');
       csrfToken = await generateCsrfToken(req);
       
       // Set the cookie with the same options as in middleware
+      logger.debug("Setting CSRF token cookie:", csrfToken);
       res.cookie('csrf-token', csrfToken, {
         path: '/',
         httpOnly: false,
@@ -176,9 +181,10 @@ router.get("/csrf-token", async (req, res) => {
     }
     
     // Return the token
+    logger.debug("Returning CSRF token:", csrfToken);
     return res.json({ csrfToken });
   } catch (error) {
-    console.error('CSRF token generation error:', error);
+    logger.error('CSRF token generation error:', error);
     return res.status(500).json({ 
       message: 'Error generating CSRF token',
       error: process.env.NODE_ENV === 'production' ? undefined : error.message
