@@ -156,7 +156,7 @@ router.get("/csrf-token", async (req, res) => {
     // Set the cookie with the same options as in middleware
     // But only if it doesn't already exist
     if (!req.cookies['csrf-token']) {
-      logger.debug("Setting CSRF token cookie");
+      logger.debug("Setting CSRF token cookie: ", csrfToken);
       res.cookie('csrf-token', csrfToken, {
         path: '/',
         httpOnly: false,
@@ -167,7 +167,7 @@ router.get("/csrf-token", async (req, res) => {
     }
     
     // Return the token
-    logger.debug("Returning CSRF token");
+    logger.debug("Returning CSRF token: ", csrfToken);
     return res.status(200).json({ csrfToken });
   } catch (error) {
     logger.error('CSRF token generation error:', error);
