@@ -44,6 +44,7 @@ export const csrfProtection = (options = {}) => {
         req.session.csrfSecret = secret;
       } catch (error) {
         logger.error('CSRF secret generation error:', error);
+        return next(new Error('CSRF secret generation failed'));
       }
     }
     

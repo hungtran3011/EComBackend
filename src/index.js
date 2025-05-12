@@ -14,10 +14,12 @@ import swaggerDocs from "./swagger.js";
 import { securityMiddleware } from "./common/middlewares/security.middleware.js";
 import redisService from './common/services/redis.service.js';
 import { csrfProtection } from "./common/middlewares/csrf.middleware.js";
+import { debugLogger } from "./common/middlewares/debug-logger.js";
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const logger = debugLogger("index");
 
 config();
 
@@ -135,7 +137,7 @@ if (true) {
               const stats = await fs.promises.stat(filePath);
               return { file, filePath, stats };
             } catch (err) {
-              console.error(`Error stating file ${file}:`, err);
+              logger.error(`Error stating file ${file}:`, err);
               return null;
             }
           })
@@ -150,19 +152,19 @@ if (true) {
           oldFiles.map(async ({ file, filePath }) => {
             try {
               await fs.promises.unlink(filePath);
-              console.log(`Deleted old temp file: ${file}`);
+              logger.info(`Deleted old temp file: ${file}`);
             } catch (err) {
-              console.error(`Error deleting old temp file ${file}:`, err);
+              logger.error(`Error deleting old temp file ${file}:`, err);
             }
           })
         );
 
         const deletedCount = oldFiles.length;
         if (deletedCount > 0) {
-          console.log(`Cleanup completed: ${deletedCount} files removed`);
+          logger.info(`Cleanup completed: ${deletedCount} files removed`);
         }
       } catch (err) {
-        console.error('Error during temp file cleanup:', err);
+        logger.error('Error during temp file cleanup:', err);
       }
     };
 
