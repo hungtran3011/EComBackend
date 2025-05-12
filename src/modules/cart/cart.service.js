@@ -1,6 +1,9 @@
 import Cart from './cart.schema.js';
 import redisService from '../../common/services/redis.service.js';
 
+import { debugLogger } from '../../common/middlewares/debug-logger.js';
+const logger = debugLogger('cart-service');
+
 const getCartByUserId = async (userId) => {
   // Check Redis cache first
   const cacheKey = `cart_${userId}`;
@@ -10,7 +13,7 @@ const getCartByUserId = async (userId) => {
       return cachedCart;
     }
   } catch (error) {
-    console.error(`Cache get error: ${error.message}`);
+    logger.error(`Cache get error: ${error.message}`);
     // Continue execution even if cache fails
   }
   
@@ -22,7 +25,7 @@ const getCartByUserId = async (userId) => {
     try {
       await redisService.set(cacheKey, cart, 300);
     } catch (error) {
-      console.error(`Cache set error: ${error.message}`);
+      logger.error(`Cache set error: ${error.message}`);
     }
   }
   
@@ -48,7 +51,7 @@ const addItemToCart = async (userId, productId, quantity) => {
   try {
     await redisService.delete(`cart_${userId}`);
   } catch (error) {
-    console.error(`Cache invalidation error: ${error.message}`);
+    logger.error(`Cache invalidation error: ${error.message}`);
   }
   
   return cart;
@@ -68,7 +71,7 @@ const updateCartItemQuantity = async (userId, productId, quantity) => {
   try {
     await redisService.delete(`cart_${userId}`);
   } catch (error) {
-    console.error(`Cache invalidation error: ${error.message}`);
+    logger.error(`Cache invalidation error: ${error.message}`);
   }
   
   return cart;
@@ -85,7 +88,7 @@ const deleteCartItem = async (userId, productId) => {
   try {
     await redisService.delete(`cart_${userId}`);
   } catch (error) {
-    console.error(`Cache invalidation error: ${error.message}`);
+    logger.error(`Cache invalidation error: ${error.message}`);
   }
   
   // Return populated cart for consistency

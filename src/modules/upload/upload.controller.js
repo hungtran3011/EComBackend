@@ -1,5 +1,7 @@
 import cloudinaryService from "../../common/services/cloudinary.service.js";
+import { debugLogger } from "../../common/middlewares/debug-logger.js";
 
+const logger = debugLogger("upload-controller");
 
 const uploadImage = async (req, res) => {
   try {
@@ -12,7 +14,7 @@ const uploadImage = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error(error);
+    logger.error(error);
     res.status(500).json({
       success: false,
       message: "Failed to upload image",
@@ -34,7 +36,7 @@ const uploadVideo = async (req, res) => {
     });
   }
   catch (error) {
-    console.error(error);
+    logger.error(error);
     res.status(500).json({
       success: false,
       message: "Failed to upload video",
@@ -55,7 +57,7 @@ const deleteImageOrVideo = async (req, res) => {
     })
   }
   catch (error) {
-    console.error(error);
+    logger.error(error);
     res.status(500).json({
       success: false,
       message: "Failed to delete image or video",

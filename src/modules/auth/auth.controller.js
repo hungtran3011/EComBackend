@@ -71,13 +71,13 @@ const registerUser = async (req, res) => {
       await mailService.sendWelcomeEmail(user.email, user.name);
     } catch (mailError) {
       // Log lỗi nhưng không làm gián đoạn việc đăng ký
-      console.error('Error sending welcome email:', mailError);
+      logger.error('Error sending welcome email:', mailError);
     }
     
     // Chỉ trả về accessToken và thông tin user
     res.status(201).json({ user, accessToken });
   } catch (e) {
-    console.error('Register error:', e);
+    logger.error('Register error:', e);
     
     // Provide clear error message for Zod validation failures
     if (e.message && e.message.includes('invalid_type')) {
@@ -172,7 +172,7 @@ const handleAdminRefreshToken = async (req, res) => {
     const { accessToken } = await AuthService.handleAdminRefreshToken(refreshToken);
     res.status(200).json({ accessToken });
   } catch (e) {
-    console.error('Admin refresh token error:', e);
+    logger.error('Admin refresh token error:', e);
     res.status(e.status || 500).json({ message: e.message });
   }
 }
@@ -273,7 +273,7 @@ const sendPasswordResetOTP = async (req, res) => {
       });
     }
     
-    console.error(`Lỗi khi gửi OTP đặt lại mật khẩu: ${error.message}`);
+    logger.error(`Lỗi khi gửi OTP đặt lại mật khẩu: ${error.message}`);
     res.status(500).json({ message: "Có lỗi xảy ra khi gửi mã OTP" });
   }
 };
@@ -319,7 +319,7 @@ const resetPassword = async (req, res) => {
     
     res.status(200).json({ message: "Đặt lại mật khẩu thành công" });
   } catch (error) {
-    console.error(`Lỗi đặt lại mật khẩu: ${error.message}`);
+    logger.error(`Lỗi đặt lại mật khẩu: ${error.message}`);
     res.status(500).json({ message: "Có lỗi xảy ra khi đặt lại mật khẩu" });
   }
 };
@@ -366,7 +366,7 @@ const sendLoginOTP = async (req, res) => {
       return res.status(404).json({ message: error.message });
     }
     
-    console.error(`Lỗi khi gửi OTP: ${error.message}`);
+    logger.error(`Lỗi khi gửi OTP: ${error.message}`);
     res.status(500).json({ message: "Có lỗi xảy ra khi gửi mã OTP" });
   }
 };
@@ -407,7 +407,7 @@ const signInWithOTP = async (req, res) => {
       user
     });
   } catch (error) {
-    console.error(`Lỗi đăng nhập với OTP: ${error.message}`);
+    logger.error(`Lỗi đăng nhập với OTP: ${error.message}`);
     res.status(error.status || 500).json({ message: error.message });
   }
 };

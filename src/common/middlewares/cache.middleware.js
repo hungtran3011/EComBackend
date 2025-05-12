@@ -1,4 +1,7 @@
 import redisService from '../services/redis.service.js';
+import { debugLogger } from './debug-logger.js';
+
+const logger = debugLogger('cache-middleware');
 
 /**
  * @name cacheMiddleware
@@ -21,7 +24,7 @@ export const cacheMiddleware = (duration = 300) => {
       const cachedResponse = await redisService.get(cacheKey, true);
       
       if (cachedResponse) {
-        console.log(`Lấy response từ cache: ${cacheKey}`);
+        logger.info(`Lấy response từ cache: ${cacheKey}`);
         return res.json(cachedResponse);
       }
       
@@ -31,7 +34,7 @@ export const cacheMiddleware = (duration = 300) => {
         // Chỉ cache nếu status code là 200
         if (res.statusCode === 200) {
           redisService.set(cacheKey, data, duration)
-            .catch(err => console.error(`Lỗi khi lưu cache: ${err.message}`));
+            .catch(err => logger.error(`Lỗi khi lưu cache: ${err.message}`));
         }
         
         // Gọi phương thức gốc
@@ -40,7 +43,7 @@ export const cacheMiddleware = (duration = 300) => {
       
       next();
     } catch (error) {
-      console.error(`Lỗi cache middleware: ${error.message}`);
+      logger.error(`Lỗi cache middleware: ${error.message}`);
       next(); // Tiếp tục request mà không dùng cache
     }
   };

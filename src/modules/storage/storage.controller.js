@@ -3,6 +3,10 @@ import { StorageItemModel } from "./storage.schema.js";
 import { ProductValidationSchema, isValidMongoId } from "../../common/validators/product.validator.js";
 import { Product } from "../product/product.schema.js";
 
+import { debugLogger } from "../../common/middlewares/debug-logger.js";
+
+const logger = debugLogger("storage-controller");
+
 const getProductQuantity = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -20,7 +24,7 @@ const getProductQuantity = async (req, res) => {
 
     return res.status(200).json({ productId, quantity: storageItem.quantity });
   } catch (error) {
-    console.error("Error fetching product quantity:", error);
+    logger.error("Error fetching product quantity:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -70,7 +74,7 @@ const updateProductQuantity = async (req, res) => {
       message: "Product quantity updated successfully" 
     });
   } catch (error) {
-    console.error("Error updating product quantity:", error);
+    logger.error("Error updating product quantity:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -80,7 +84,7 @@ const getStorage = async (req, res) => {
     const storageItems = await StorageItemModel.find().populate("product");
     return res.status(200).json({ items: storageItems });
   } catch (error) {
-    console.error("Error fetching storage:", error);
+    logger.error("Error fetching storage:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -105,7 +109,7 @@ const updateStorage = async (req, res) => {
 
     return res.status(200).json({ message: "Storage updated successfully" });
   } catch (error) {
-    console.error("Error updating storage:", error);
+    logger.error("Error updating storage:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

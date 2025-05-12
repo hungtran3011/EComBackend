@@ -1,5 +1,8 @@
 import searchService from './search.service.js';
 import { cacheMiddleware } from '../../common/middlewares/cache.middleware.js';
+import { debugLogger } from '../../common/middlewares/debug-logger.js';
+
+const logger = debugLogger('search-controller');
 
 const searchProducts = async (req, res) => {
   try {
@@ -42,7 +45,7 @@ const searchProducts = async (req, res) => {
     const results = await searchService.searchProducts(searchOptions);
     return res.status(200).json(results);
   } catch (error) {
-    console.error('Search controller error:', error);
+    logger.error('Search controller error:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Lỗi khi tìm kiếm sản phẩm',
@@ -69,7 +72,7 @@ const getProductSuggestions = async (req, res) => {
 
     return res.status(200).json(suggestions);
   } catch (error) {
-    console.error('Suggestion controller error:', error);
+    logger.error('Suggestion controller error:', error);
     return res.status(500).json({ 
       success: false, 
       message: 'Lỗi khi lấy gợi ý sản phẩm',

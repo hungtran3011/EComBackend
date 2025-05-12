@@ -1,5 +1,8 @@
 // import auditLogger from '../services/audit-logger.service.js';
 import AuthService from 'auth.service.js';
+import { debugLogger } from '../../common/middlewares/debug-logger';
+
+const logger = debugLogger('admin-controller');
 
 /**
  * @swagger
@@ -46,7 +49,7 @@ const getAdminLogs = async (req, res) => {
     
     res.status(200).json({ logs });
   } catch (error) {
-    console.error('Error retrieving admin logs:', error);
+    logger.error('Error retrieving admin logs:', error);
     res.status(500).json({ message: 'Failed to retrieve admin logs' });
   }
 };
@@ -94,7 +97,7 @@ const getLogById = async (req, res) => {
     
     res.status(200).json({ log });
   } catch (error) {
-    console.error('Error retrieving log details:', error);
+    logger.error('Error retrieving log details:', error);
     res.status(500).json({ message: 'Failed to retrieve log details' });
   }
 };

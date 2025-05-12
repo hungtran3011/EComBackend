@@ -7,8 +7,10 @@ import {
   OtpEmailValidationSchema,
   OtpPhoneNumberValidationSchema
 } from '../validators/otp.validator.js';
+import { debugLogger } from '../middlewares/debug-logger.js';
 
 config();
+const logger = debugLogger('otp-service');
 
 /**
  * @name OTPService
@@ -79,7 +81,7 @@ const saveOTP = async (userId, purpose) => {
     await redisService.set(redisKey, otp, OTP_EXPIRY_SECONDS);
     return otp;
   } catch (error) {
-    console.error(`Lỗi khi lưu OTP vào Redis: ${error.message}`);
+    logger.error(`Lỗi khi lưu OTP vào Redis: ${error.message}`);
     throw new Error('Không thể lưu mã OTP');
   }
 };
@@ -114,7 +116,7 @@ const verifyOTP = async (userId, otp, purpose) => {
 
     return true;
   } catch (error) {
-    console.error(`Lỗi khi xác minh OTP: ${error.message}`);
+    logger.error(`Lỗi khi xác minh OTP: ${error.message}`);
     return false;
   }
 };
@@ -133,7 +135,7 @@ const sendOTPByEmail = async (email, otp, purpose) => {
     await mailService.sendOTPEmail(email, otp, purpose);
     return true;
   } catch (error) {
-    console.error(`Lỗi khi gửi email OTP: ${error.message}`);
+    logger.error(`Lỗi khi gửi email OTP: ${error.message}`);
     throw new Error('Không thể gửi email chứa mã OTP');
   }
 };
@@ -199,7 +201,7 @@ const sendLoginOTP = async (credentials) => {
     }
   }
   catch (error) {
-    console.error(`Lỗi khi gửi mã OTP đăng nhập: ${error.message}`);
+    logger.error(`Lỗi khi gửi mã OTP đăng nhập: ${error.message}`);
     throw new Error('Không thể gửi mã OTP đăng nhập');
   }
 };
@@ -234,7 +236,7 @@ const checkRateLimit = async (identifier, maxAttempts = 3, windowSeconds = 600) 
 
     return true;
   } catch (error) {
-    console.error(`Lỗi khi kiểm tra giới hạn yêu cầu OTP: ${error.message}`);
+    logger.error(`Lỗi khi kiểm tra giới hạn yêu cầu OTP: ${error.message}`);
     // Nếu có lỗi, cho phép yêu cầu để tránh block người dùng
     return true;
   }
@@ -267,7 +269,7 @@ const sendPasswordResetOTP = async (email) => {
     await sendOTPByEmail(email, otp, 'reset_password');
   }
   catch (error) {
-    console.error(`Lỗi khi gửi mã OTP đặt lại mật khẩu: ${error.message}`);
+    logger.error(`Lỗi khi gửi mã OTP đặt lại mật khẩu: ${error.message}`);
     throw new Error('Không thể gửi mã OTP đặt lại mật khẩu');
   }
 };
@@ -305,7 +307,7 @@ const resetPassword = async (email, otp, newPassword) => {
 
     return true;
   } catch (error) {
-    console.error(`Lỗi khi đặt lại mật khẩu: ${error.message}`);
+    logger.error(`Lỗi khi đặt lại mật khẩu: ${error.message}`);
     throw new Error('Không thể đặt lại mật khẩu');
   }
 };

@@ -1,7 +1,9 @@
 import nodemailer from 'nodemailer';
 import { config } from 'dotenv';
+import { debugLogger } from '../middlewares/debug-logger.js';
 
 config();
+const logger = debugLogger('mail-service');
 
 /**
  * @name MailService
@@ -48,10 +50,10 @@ const verifyConnection = async () => {
   try {
     const transporter = createEmailTransporter();
     await transporter.verify();
-    console.log('Mail service: SMTP connection verified successfully');
+    logger.info('Mail service: SMTP connection verified successfully');
     return true;
   } catch (error) {
-    console.error('Mail service: Failed to verify SMTP connection:', error);
+    logger.error('Mail service: Failed to verify SMTP connection:', error);
     return false;
   }
 };
@@ -86,12 +88,12 @@ const sendMail = async (mailOptions) => {
     const info = await transporter.sendMail(mailData);
     
     if (process.env.NODE_ENV !== 'production') {
-      console.log('Email preview URL:', nodemailer.getTestMessageUrl(info));
+      logger.info('Email preview URL:', nodemailer.getTestMessageUrl(info));
     }
     
     return info;
   } catch (error) {
-    console.error(`Mail service: Error sending email:`, error);
+    logger.error(`Mail service: Error sending email:`, error);
     throw new Error(`Failed to send email: ${error.message}`);
   }
 };

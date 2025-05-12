@@ -110,8 +110,8 @@ router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
  * /auth/csrf-token:
  *   get:
  *     tags: [Auth]
- *     summary: Get a new CSRF token
- *     description: Route to get a new CSRF token. The token should be sent in the `X-CSRF-Token` header for subsequent requests.
+ *     summary: Get a CSRF token
+ *     description: Get a CSRF token for use in subsequent requests. The token remains stable for the session duration.
  *     security:
  *        - cookieAuth: []
  *     responses:
@@ -124,10 +124,9 @@ router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
  *               properties:
  *                 csrfToken:
  *                   type: string
- *             example:
- *               csrfToken: "example-csrf-token"
- *       401:
- *         description: Unauthorized
+ *                   description: Token to be included in X-CSRF-Token header for requests
+ *       500:
+ *         description: Server Error
  *         content:
  *           application/json:
  *             schema:
@@ -135,20 +134,8 @@ router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *             example:
- *               message: "Unauthorized"
- *       403:
- *         description: Forbidden
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *             example:
- *               message: "Forbidden"
  */
+
 /**
  * GET /auth/csrf-token
  * @summary Get a new CSRF token
@@ -161,18 +148,16 @@ router.get("/csrf-token", async (req, res) => {
   try {
     // Check for existing token
     let csrfToken = req.cookies['csrf-token'];
-    logger.debug("CSRF token from cookie: [redacted]");
-    // Don't log the actual token value
-    logger.debug("CSRF token from cookie: [present]", csrfToken ? true : false);
+    logger.debug("CSRF token request received");
     
-    // If no token exists, generate a new one
-    if (!csrfToken) {
-      logger.debug("No CSRF token found, generating a new one...");
-      const { generateCsrfToken } = await import('../../common/middlewares/csrf.middleware.js');
-      csrfToken = await generateCsrfToken(req);
-      
-      // Set the cookie with the same options as in middleware
-      logger.debug("Setting CSRF token cookie:", csrfToken);
+    // Create a consistent token from the session secret (create or reuse)
+    const { generateCsrfToken } = await import('../../common/middlewares/csrf.middleware.js');
+    csrfToken = await generateCsrfToken(req);
+    
+    // Set the cookie with the same options as in middleware
+    // But only if it doesn't already exist
+    if (!req.cookies['csrf-token']) {
+      logger.debug("Setting CSRF token cookie");
       res.cookie('csrf-token', csrfToken, {
         path: '/',
         httpOnly: false,
@@ -183,8 +168,8 @@ router.get("/csrf-token", async (req, res) => {
     }
     
     // Return the token
-    logger.debug("Returning CSRF token:", csrfToken);
-    return res.json({ csrfToken });
+    logger.debug("Returning CSRF token");
+    return res.status(200).json({ csrfToken });
   } catch (error) {
     logger.error('CSRF token generation error:', error);
     return res.status(500).json({ 

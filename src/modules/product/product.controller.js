@@ -4,6 +4,10 @@ import fs from 'fs';
 import { promisify } from 'util';
 import path from 'path';
 
+import { debugLogger } from "../../common/middlewares/debug-logger.js";
+
+const logger = debugLogger("product-controller");
+
 /**
  * @swagger
  * /product:
@@ -32,7 +36,7 @@ const getAllProducts = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const result = await ProductService.getAllProductsService(parseInt(page), parseInt(limit));
-    // console.log(result);
+    // logger.log(result);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -644,7 +648,7 @@ const uploadProductImages = async (req, res) => {
         // Delete the temporary file
         await unlinkAsync(file.path);
       } catch (error) {
-        console.error("Error uploading image %s:", file.filename, error);
+        logger.error("Error uploading image %s:", file.filename, error);
       }
     }
     
@@ -658,7 +662,7 @@ const uploadProductImages = async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error("Error in uploadProductImages:", error);
+    logger.error("Error in uploadProductImages:", error);
     
     // Clean up any temporary files on error
     if (req.files) {
@@ -667,7 +671,7 @@ const uploadProductImages = async (req, res) => {
         try {
           await unlinkAsync(file.path);
         } catch (err) {
-          console.error("Failed to delete temporary file %s:", file.path, err);
+          logger.error("Failed to delete temporary file %s:", file.path, err);
         }
       }
     }
@@ -704,7 +708,7 @@ const deleteProductImage = async (req, res) => {
       data: result
     });
   } catch (error) {
-    console.error("Error in deleteProductImage:", error);
+    logger.error("Error in deleteProductImage:", error);
     res.status(500).json({ message: error.message });
   }
 };

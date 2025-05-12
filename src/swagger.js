@@ -5,11 +5,14 @@ import path from 'path';
 import express from 'express';
 import { config } from 'dotenv';
 
+import { debugLogger } from './common/middlewares/debug-logger';
+
 config()
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const logger = debugLogger('swagger');
 
 // Swagger definition
 const swaggerDefinition = {
@@ -259,7 +262,8 @@ const swaggerDocs = (app, port) => {
     res.send(swaggerSpec);
   });
 
-  console.log(`📚 Swagger docs available at http://localhost:${port}/api-docs`);
+  logger.info(`📚 Swagger docs available at http://localhost:${port}/api-docs`);
+  logger.debug(`Swagger documentation initialized for port: ${port}`);
 };
 
 export default swaggerDocs;

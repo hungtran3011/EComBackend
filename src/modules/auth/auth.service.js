@@ -5,6 +5,8 @@ import { UserService } from "../user/user.service.js";
 import OTPService from "../../common/services/otp.service.js";
 import { OtpPhoneNumberValidationSchema, OtpEmailValidationSchema } from "../../common/validators/otp.validator.js";
 
+import { debugLogger } from "../../common/middlewares/debug-logger.js";
+
 // Cấu hình cookie
 const COOKIE_CONFIG = {
   httpOnly: true,
@@ -12,6 +14,8 @@ const COOKIE_CONFIG = {
   sameSite: 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 ngày
 };
+
+const logger = debugLogger("auth-service");
 
 /**
  * Đăng ký người dùng mới
@@ -255,12 +259,12 @@ const adminSignIn = async (credentials, headers) => {
     // }
     
     const validEmail = OtpEmailValidationSchema.parse(email);
-    console.log("Valid email:", validEmail); 
+    logger.info("Valid email:", validEmail); 
     // const admin = await User.findOne({ validEmail, role: "admin" });
     const admin = await UserService.findAdminByEmailOrPhone(validEmail, null);
-    console.log("Admin:", admin);
+    logger.info("Admin:", admin);
     if (!admin) {
-      console.error("Admin not found");
+      logger.error("Admin not found");
       throw { status: 401, message: "Invalid credentials" };
     }
 
@@ -306,7 +310,7 @@ const adminSignIn = async (credentials, headers) => {
     } else if (error.name === 'ZodError') {
       throw { status: 400, message: "Invalid email format" };
     } else {
-      console.error("Admin sign-in error:", error);
+      logger.error("Admin sign-in error:", error);
       throw { status: 500, message: "Internal server error during authentication" };
     }
   }

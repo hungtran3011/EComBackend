@@ -14,10 +14,12 @@ import swaggerDocs from "./swagger.js";
 import { securityMiddleware } from "./common/middlewares/security.middleware.js";
 import redisService from './common/services/redis.service.js';
 import { csrfProtection } from "./common/middlewares/csrf.middleware.js";
+import { debugLogger } from "./common/middlewares/debug-logger.js";
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const logger = debugLogger("index");
 
 config();
 
@@ -40,17 +42,17 @@ mongoose.connect(queryString, {
   ssl: true,
   tls: true
 }).then(() => {
-  console.log("Connected to MongoDB");
+  logger.info("Connected to MongoDB");
 
 }).catch((error) => {
-  console.error(error);
+  logger.error(error);
 })
 
 // Đảm bảo Redis cũng được kết nối
 if (!redisService.isConnected()) {
   redisService.connect()
-    .then(() => console.log('Redis service initialized'))
-    .catch(err => console.error('Failed to initialize Redis:', err));
+    .then(() => logger.info('Redis service initialized'))
+    .catch(err => logger.error('Failed to initialize Redis:', err));
 }
 
 
@@ -80,7 +82,7 @@ app.use("/api", MainRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(err.stack);
   res.status(500).json({
     message: "Something went wrong!",
     error: process.env.NODE_ENV === 'production' ? {} : err
@@ -88,14 +90,14 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  logger.log(`Server running on port ${port}`);
 })
 
 swaggerDocs(app, port);
 
 // Và thêm vào phần tắt ứng dụng
 process.on('SIGINT', async () => {
-  console.log('Shutting down server...');
+  logger.log('Shutting down server...');
   
   // Đóng kết nối Redis
   await redisService.disconnect();
@@ -135,7 +137,7 @@ if (true) {
               const stats = await fs.promises.stat(filePath);
               return { file, filePath, stats };
             } catch (err) {
-              console.error(`Error stating file ${file}:`, err);
+              logger.error(`Error stating file ${file}:`, err);
               return null;
             }
           })
@@ -150,19 +152,19 @@ if (true) {
           oldFiles.map(async ({ file, filePath }) => {
             try {
               await fs.promises.unlink(filePath);
-              console.log(`Deleted old temp file: ${file}`);
+              logger.info(`Deleted old temp file: ${file}`);
             } catch (err) {
-              console.error(`Error deleting old temp file ${file}:`, err);
+              logger.error(`Error deleting old temp file ${file}:`, err);
             }
           })
         );
 
         const deletedCount = oldFiles.length;
         if (deletedCount > 0) {
-          console.log(`Cleanup completed: ${deletedCount} files removed`);
+          logger.info(`Cleanup completed: ${deletedCount} files removed`);
         }
       } catch (err) {
-        console.error('Error during temp file cleanup:', err);
+        logger.error('Error during temp file cleanup:', err);
       }
     };
 

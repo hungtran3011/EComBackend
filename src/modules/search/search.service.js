@@ -1,6 +1,9 @@
 import { MongoDBClient } from "../../common/services/mongo.service.js";
 import { Product } from "../product/product.schema.js";
-import redisService from '../../common/services/redis.service.js';
+import redisService from '../../common/services/redis.service.js'; 
+import { debugLogger } from '../../common/middlewares/debug-logger.js'; 
+ 
+const logger = debugLogger('search-service');
 
 /**
  * Search for products with various filter options
@@ -36,7 +39,7 @@ export const searchProducts = async (options = {}) => {
     // Check cache first
     const cachedResults = await redisService.get(cacheKey, true);
     if (cachedResults) {
-      console.log(`Retrieved search results from cache: ${cacheKey}`);
+      logger.info(`Retrieved search results from cache: ${cacheKey}`);
       return cachedResults;
     }
 
@@ -129,7 +132,7 @@ export const searchProducts = async (options = {}) => {
 
     return result;
   } catch (error) {
-    console.error('Search error:', error);
+    logger.error('Search error:', error);
     throw error;
   }
 };
@@ -171,7 +174,7 @@ export const getProductSuggestions = async (text, limit = 5) => {
     
     return result;
   } catch (error) {
-    console.error('Suggestion error:', error);
+    logger.error('Suggestion error:', error);
     throw error;
   }
 };

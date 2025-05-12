@@ -1,4 +1,5 @@
 import { config } from "dotenv";
+import { debugLogger } from "./debug-logger.js";
 
 config();
 
@@ -7,6 +8,8 @@ const whitelist = [
   process.env.ADMIN_URL,
   process.env.BACKEND_URL,
 ].filter(Boolean);
+
+const logger = debugLogger("cors");
 
 
 function isOriginAllowed(origin) {
@@ -23,7 +26,7 @@ function isOriginAllowed(origin) {
       return allowedUrl.hostname === originUrl.hostname && 
              allowedUrl.port === originUrl.port;
     } catch (error) {
-      console.error('Error parsing URL:', error);
+      logger.error('Error parsing URL:', error);
       return false;
     }
   });
@@ -32,12 +35,12 @@ function isOriginAllowed(origin) {
 export const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    console.log('Origin:', origin);
+    logger.info('Origin:', origin);
     
     if (isOriginAllowed(origin) || !origin) {
       callback(null, true);
     } else {
-      console.error('Origin not allowed:', origin);
+      logger.error('Origin not allowed:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
