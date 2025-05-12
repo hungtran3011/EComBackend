@@ -1,4 +1,3 @@
-import { MongoDBClient } from "../../common/services/mongo.service.js";
 import { Product } from "../product/product.schema.js";
 import redisService from '../../common/services/redis.service.js'; 
 import { debugLogger } from '../../common/middlewares/debug-logger.js'; 
