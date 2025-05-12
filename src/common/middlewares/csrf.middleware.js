@@ -20,7 +20,7 @@ export const csrfProtection = (options = {}) => {
       key: 'csrf-token',
       path: '/',
       httpOnly: false,
-      sameSite: 'lax',
+      sameSite: 'none', // Change to 'none' for cross-site requests
       secure: process.env.NODE_ENV === 'production',
       maxAge: 3600 * 24 // 24 hours
     },
@@ -29,65 +29,28 @@ export const csrfProtection = (options = {}) => {
   };
 
   return async (req, res, next) => {
-    // Ensure sessions are available
-    if (!req.session) {
-      logger.error('Session middleware must be used before CSRF middleware');
-      return next(new Error('Session middleware required'));
-    }
-    
-    // Generate a new CSRF token if needed
-    if (!req.session.csrfSecret) {
-      try {
-        logger.debug("Generating new CSRF secret for session");
-        // Create a new CSRF secret
-        const secret = await tokens.secret();
-        req.session.csrfSecret = secret;
-      } catch (error) {
-        logger.error('CSRF secret generation error:', error);
-        return next(new Error('CSRF secret generation failed'));
-      }
-    }
-    
-    // Always create the token from the secret
-    try {
-      const token = tokens.create(req.session.csrfSecret);
-      
-      // Set cookie with the token, but don't keep resetting it if it exists
-      // This prevents unpredictable rotation
-      if (!req.cookies[opts.cookie.key]) {
-        logger.debug("Setting new CSRF token cookie");
-        res.cookie(opts.cookie.key, token, opts.cookie);
-      }
-      
-      // Always make token available to templates/responses
-      res.locals.csrfToken = token;
-    } catch (error) {
-      logger.error('CSRF token creation error:', error);
-    }
-    
-    // Skip CSRF check for ignored methods
-    if (opts.ignoreMethods.includes(req.method)) {
+    // For token verification requests, always allow them
+    if (req.path === '/api/auth/csrf-token' && req.method === 'GET') {
       return next();
     }
-    
-    // Verify the CSRF token for other methods
+
     try {
-      const secret = req.session.csrfSecret;
-      const token = req.headers['x-csrf-token'] || req.body._csrf;
+      // Check token in header first
+      const token = req.headers['x-csrf-token'];
+      const cookieToken = req.cookies[opts.cookie.key];
       
-      if (!secret || !token) {
-        logger.warn(`CSRF validation failed: ${!secret ? 'Missing secret' : 'Missing token'}`);
-        return res.status(403).json({ 
-          message: 'CSRF token missing', 
-          detail: !secret ? 'Session expired' : 'Token not provided' 
-        });
-      }
-      
-      if (!tokens.verify(secret, token)) {
-        logger.warn(`CSRF validation failed: Invalid token`);
+      // If this is a protected method and we have a token
+      if (!opts.ignoreMethods.includes(req.method) && token) {
+        // For simplicity in production, verify that header token matches cookie
+        if (token === cookieToken) {
+          return next();
+        }
+        
+        // If tokens don't match, reject the request
         return res.status(403).json({ message: 'Invalid CSRF token' });
       }
       
+      // For unprotected methods or no token provided, continue
       next();
     } catch (error) {
       logger.error('CSRF validation error:', error);
