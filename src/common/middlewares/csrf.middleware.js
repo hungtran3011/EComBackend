@@ -103,19 +103,10 @@ export const csrfErrorHandler = (err, req, res, next) => {
 
 /**
  * @name generateCsrfToken
- * @description Generate a CSRF token from the existing or new secret
- * @param {Object} req - Express request object
- * @returns {Promise<string>} CSRF token
+ * @description Generate a CSRF token from the environment secret
+ * @returns {string} CSRF token
  */
-export const generateCsrfToken = async (req) => {
-  if (!req.session) {
-    throw new Error('Session middleware required');
-  }
-  
-  if (!req.session.csrfSecret) {
-    const secret = await tokens.secret();
-    req.session.csrfSecret = secret;
-  }
-  
-  return tokens.create(req.session.csrfSecret);
+export const generateCsrfToken = () => {
+  // Use the environment variable directly for consistency
+  return tokens.create(process.env.CSRF_TOKEN_SECRET);
 };

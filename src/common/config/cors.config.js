@@ -51,5 +51,14 @@ export const corsOptions = {
     'Authorization', 
     'X-CSRF-Token',
     "Cache-Control",
+    'Cookie',
+  ],
+  exposedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-CSRF-Token',
+    "Cache-Control",
+    'Set-Cookie',
+    'Cookie'
   ],
 };
