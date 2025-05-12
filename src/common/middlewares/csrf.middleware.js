@@ -30,57 +30,58 @@ export const csrfProtection = (options = {}) => {
 
   return async (req, res, next) => {
     logger.debug(`CSRF check for ${req.method} ${req.path}`);
-    logger.debug(`Headers: ${JSON.stringify(Object.keys(req.headers))}`);
     
-    // For token verification requests, always allow them
+    // Skip CSRF check for token endpoint
     if (req.path === '/api/auth/csrf-token' && req.method === 'GET') {
       logger.debug(`CSRF token endpoint accessed, bypassing protection`);
       return next();
     }
 
     try {
-      // Check token in header first
-      const token = req.headers['x-csrf-token'];
-      const cookieToken = req.cookies[opts.cookie.key];
+      // Check for token in various places
+      const token = 
+        req.headers['x-csrf-token'] || 
+        (req.body && req.body._csrf) || 
+        req.query._csrf;
+        
+      const cookieToken = req.cookies && req.cookies[opts.cookie.key];
       
-      logger.debug(`CSRF Header token present: ${!!token}`);
+      logger.debug(`CSRF Header/Body token present: ${!!token}`);
       logger.debug(`CSRF Cookie token present: ${!!cookieToken}`);
       
-      if (token) {
-        // Log token details (only first and last 4 chars for security)
-        const tokenPreview = token.length > 8 
-          ? `${token.substring(0, 4)}...${token.substring(token.length - 4)}`
-          : '***';
-        logger.debug(`CSRF token preview: ${tokenPreview}`);
-      }
-      
-      // Log if this method requires CSRF protection
-      logger.debug(`Method ${req.method} is ${!opts.ignoreMethods.includes(req.method) ? '' : 'not '}protected`);
-      
-      // If this is a protected method and we have a token
-      if (!opts.ignoreMethods.includes(req.method) && token) {
-        // For simplicity in production, verify that header token matches cookie
-        const tokensMatch = token === cookieToken;
-        logger.debug(`CSRF tokens match: ${tokensMatch}`);
-        
-        if (tokensMatch) {
-          logger.debug(`CSRF validation successful`);
-          return next();
-        }
-        
-        // If tokens don't match, reject the request
-        logger.error(`CSRF validation failed: tokens do not match`);
-        return res.status(403).json({ message: 'Invalid CSRF token' });
-      }
-      
-      // For unprotected methods or no token provided
+      // Skip CSRF for ignored methods
       if (opts.ignoreMethods.includes(req.method)) {
         logger.debug(`CSRF check skipped for ${req.method} request`);
-      } else if (!token) {
-        logger.debug(`No CSRF token provided for ${req.method} request`);
+        return next();
       }
       
-      next();
+      // No token at all
+      if (!token) {
+        logger.error(`CSRF validation failed: No token provided`);
+        return res.status(403).json({ message: 'CSRF token required' });
+      }
+      
+      // If we have both cookie and header token
+      if (cookieToken && token) {
+        // Match them
+        if (token === cookieToken) {
+          logger.debug(`CSRF validation successful: tokens match`);
+          return next();
+        }
+      } 
+      // If we only have header token but no cookie (cookie issue)
+      else if (token && !cookieToken) {
+        // Fallback to secret validation in production
+        const isValid = tokens.verify(process.env.CSRF_TOKEN_SECRET, token);
+        
+        if (isValid) {
+          logger.debug(`CSRF validation successful with secret+token`);
+          return next();
+        }
+      }
+      
+      logger.error(`CSRF validation failed`);
+      return res.status(403).json({ message: 'Invalid CSRF token' });
     } catch (error) {
       logger.error('CSRF validation error:', error);
       res.status(403).json({ message: 'CSRF validation failed' });
