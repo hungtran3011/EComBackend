@@ -1,16 +1,17 @@
 import Tokens from 'csrf';
 import { config } from 'dotenv';
+import { debugLogger } from "./debug-logger.js";
 
 config();
 
 const tokens = new Tokens();
-const SECRET = process.env.CSRF_SECRET;
+const logger = debugLogger("csrf-middleware");
 
 /**
  * @name csrfProtection
  * @description Middleware that provides CSRF protection
  * Uses Double Submit Cookie pattern with custom header verification
- * Allows tokens to be used for multiple requests
+ * Prevents unpredictable token rotation in production
  */
 export const csrfProtection = (options = {}) => {
   // Set defaults
@@ -30,33 +31,37 @@ export const csrfProtection = (options = {}) => {
   return async (req, res, next) => {
     // Ensure sessions are available
     if (!req.session) {
-      console.error('Session middleware must be used before CSRF middleware');
+      logger.error('Session middleware must be used before CSRF middleware');
       return next(new Error('Session middleware required'));
     }
     
-    // Generate a new CSRF token only if one doesn't exist
-    if (!req.session.csrfSecret || !req.cookies[opts.cookie.key]) {
+    // Generate a new CSRF token if needed
+    if (!req.session.csrfSecret) {
       try {
-        // Create a new CSRF token
+        logger.debug("Generating new CSRF secret for session");
+        // Create a new CSRF secret
         const secret = await tokens.secret();
-        const token = tokens.create(secret);
-        
-        // Store the secret in session
         req.session.csrfSecret = secret;
-        
-        // Set cookie with the token
-        res.cookie(opts.cookie.key, token, opts.cookie);
-        
-        // For API responses, let's attach the token to res.locals
-        // so it can be included in API responses if needed
-        res.locals.csrfToken = token;
       } catch (error) {
-        console.error('CSRF token generation error:', error);
+        logger.error('CSRF secret generation error:', error);
       }
-    } else {
-      // If token exists, make it available to the response
-      const existingToken = req.cookies[opts.cookie.key];
-      res.locals.csrfToken = existingToken;
+    }
+    
+    // Always create the token from the secret
+    try {
+      const token = tokens.create(req.session.csrfSecret);
+      
+      // Set cookie with the token, but don't keep resetting it if it exists
+      // This prevents unpredictable rotation
+      if (!req.cookies[opts.cookie.key]) {
+        logger.debug("Setting new CSRF token cookie");
+        res.cookie(opts.cookie.key, token, opts.cookie);
+      }
+      
+      // Always make token available to templates/responses
+      res.locals.csrfToken = token;
+    } catch (error) {
+      logger.error('CSRF token creation error:', error);
     }
     
     // Skip CSRF check for ignored methods
@@ -70,6 +75,7 @@ export const csrfProtection = (options = {}) => {
       const token = req.headers['x-csrf-token'] || req.body._csrf;
       
       if (!secret || !token) {
+        logger.warn(`CSRF validation failed: ${!secret ? 'Missing secret' : 'Missing token'}`);
         return res.status(403).json({ 
           message: 'CSRF token missing', 
           detail: !secret ? 'Session expired' : 'Token not provided' 
@@ -77,13 +83,13 @@ export const csrfProtection = (options = {}) => {
       }
       
       if (!tokens.verify(secret, token)) {
+        logger.warn(`CSRF validation failed: Invalid token`);
         return res.status(403).json({ message: 'Invalid CSRF token' });
       }
       
-      // Don't regenerate the token after verification - let it be reused
       next();
     } catch (error) {
-      console.error('CSRF validation error:', error);
+      logger.error('CSRF validation error:', error);
       res.status(403).json({ message: 'CSRF validation failed' });
     }
   };
@@ -95,6 +101,7 @@ export const csrfProtection = (options = {}) => {
  */
 export const csrfErrorHandler = (err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
+    logger.warn("CSRF attack detected");
     return res.status(403).json({ message: 'CSRF attack detected' });
   }
   next(err);
@@ -102,16 +109,19 @@ export const csrfErrorHandler = (err, req, res, next) => {
 
 /**
  * @name generateCsrfToken
- * @description Generate a new CSRF token for explicit token rotation
+ * @description Generate a CSRF token from the existing or new secret
  * @param {Object} req - Express request object
- * @returns {Promise<string>} New CSRF token
+ * @returns {Promise<string>} CSRF token
  */
 export const generateCsrfToken = async (req) => {
   if (!req.session) {
     throw new Error('Session middleware required');
   }
   
-  const secret = await tokens.secret();
-  req.session.csrfSecret = secret;
-  return tokens.create(secret);
+  if (!req.session.csrfSecret) {
+    const secret = await tokens.secret();
+    req.session.csrfSecret = secret;
+  }
+  
+  return tokens.create(req.session.csrfSecret);
 };
