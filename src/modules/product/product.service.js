@@ -28,12 +28,12 @@ export const getAllProductsService = async (page, limit) => {
     const startIndex = (page - 1) * limit;
     const total = await Product.countDocuments();
     const products = await Product.find().skip(startIndex).limit(limit);
-    // console.log(products)
+    // logger.info(products)
     const result = ProductListValidationSchema.parse({ page, limit, total, products });
-    console.log(`Lấy ${products.length} sản phẩm từ database`);
+    logger.info(`Lấy ${products.length} sản phẩm từ database`);
     return result;
   } catch (error) {
-    console.error("Lỗi khi lấy danh sách sản phẩm:", error);
+    logger.error("Lỗi khi lấy danh sách sản phẩm:", error);
     throw new Error("Không thể lấy danh sách sản phẩm");
   }
 };
@@ -61,11 +61,11 @@ export const getProductByIdService = async (id, options = {}) => {
     const cachedProduct = await redisService.get(cacheKey, true);
 
     if (cachedProduct) {
-      console.log(`Lấy sản phẩm ${id} từ cache`);
+      logger.info(`Lấy sản phẩm ${id} từ cache`);
       return cachedProduct;
     }
   } else {
-    console.log(`Bỏ qua cache cho sản phẩm ${id} theo yêu cầu của client`);
+    logger.info(`Bỏ qua cache cho sản phẩm ${id} theo yêu cầu của client`);
   }
 
   // Nếu không có trong cache hoặc bỏ qua cache, truy vấn từ database
@@ -99,7 +99,7 @@ export const getProductCountService = async () => {
     const count = await Product.countDocuments();
     return count;
   } catch (error) {
-    console.error("Lỗi khi đếm sản phẩm:", error);
+    logger.error("Lỗi khi đếm sản phẩm:", error);
     throw new Error("Không thể đếm sản phẩm");
   }
 }
@@ -112,7 +112,7 @@ export const getProductCountService = async () => {
  * @throws {Error} Nếu trường dữ liệu không khớp với định nghĩa danh mục
  */
 export const createProductService = async (productData) => {
-  console.log(productData);
+  logger.info(productData);
   const { productImages, variations, ...otherData } = productData;
 
   // Validate basic product data
@@ -124,7 +124,7 @@ export const createProductService = async (productData) => {
     categoryObjectId = validateObjectId(category?._id ?? category);
   }
   catch (error) {
-    console.error("Error validating category ID:", error);
+    logger.error("Error validating category ID:", error);
     throw new Error("Invalid category ID");
   }
 
@@ -332,7 +332,7 @@ export const updateProductService = async (id, updateData) => {
     return result;
   } catch (error) {
     if (error.name === 'ZodError') {
-      console.error('Validation error:', error.errors);
+      logger.error('Validation error:', error.errors);
       throw new Error(`Validation failed: ${error.errors.map(e => e.message).join(', ')}`);
     }
     throw error;
@@ -354,7 +354,7 @@ export const deleteProductService = async (id) => {
   // Delete from cache
   const cacheKey = `product:${id}`;
   await redisService.del(cacheKey);
-  console.log(`Removed product ${id} from cache`);
+  logger.info(`Removed product ${id} from cache`);
 
   return { message: "Product deleted successfully" };
 };
@@ -366,7 +366,7 @@ export const deleteProductService = async (id) => {
  */
 export const getAllCategoriesService = async () => {
   const categories = await Category.find();
-  console.log(categories);
+  logger.info(categories);
   return CategoriesValidationSchema.parse(categories);
 };
 
@@ -391,7 +391,7 @@ export const getCategoryByIdService = async (id) => {
  * @returns {Promise<Object>} Danh mục vừa được tạo
  */
 export const createCategoryService = async (categoryData) => {
-  console.log(categoryData);
+  logger.info(categoryData);
   const newCategory = CategoryValidationSchema.parse(categoryData);
   const addedCategory = new Category(newCategory);
   await addedCategory.save();
@@ -407,11 +407,11 @@ export const createCategoryService = async (categoryData) => {
  * @throws {Error} Nếu ID không hợp lệ hoặc không tìm thấy danh mục
  */
 export const updateCategoryService = async (id, updateData) => {
-  console.log("Attempting to update category %s with data:", id, updateData);
+  logger.info("Attempting to update category %s with data:", id, updateData);
 
   try {
     if (!isValidMongoId(id)) {
-      console.error(`Invalid category ID format: ${id}`);
+      logger.error(`Invalid category ID format: ${id}`);
       throw new Error("Invalid category ID");
     }
 
@@ -419,35 +419,35 @@ export const updateCategoryService = async (id, updateData) => {
 
     try {
       if (updateData.name !== undefined) {
-        console.log(`Validating category name: ${updateData.name}`);
+        logger.info(`Validating category name: ${updateData.name}`);
         validatedData.name = CategoryValidationSchema.shape.name.parse(updateData.name);
       }
     } catch (error) {
-      console.error(`Validation error for category name: ${error.message}`, error);
+      logger.error(`Validation error for category name: ${error.message}`, error);
       throw new Error(`Invalid category name: ${error.message}`);
     }
 
     try {
       if (updateData.description !== undefined) {
-        console.log(`Validating category description`);
+        logger.info(`Validating category description`);
         validatedData.description = CategoryValidationSchema.shape.description.parse(updateData.description);
       }
     } catch (error) {
-      console.error(`Validation error for category description: ${error.message}`, error);
+      logger.error(`Validation error for category description: ${error.message}`, error);
       throw new Error(`Invalid category description: ${error.message}`);
     }
 
     try {
       if (updateData.fields !== undefined) {
-        console.log(`Validating ${updateData.fields.length} category fields`);
+        logger.info(`Validating ${updateData.fields.length} category fields`);
         validatedData.fields = CategoryValidationSchema.shape.fields.parse(updateData.fields);
       }
     } catch (error) {
-      console.error(`Validation error for category fields:`, error);
+      logger.error(`Validation error for category fields:`, error);
       throw new Error(`Invalid category fields: ${error.message}`);
     }
 
-    console.log(`Updating category %s with validated data:`, id, validatedData);
+    logger.info(`Updating category %s with validated data:`, id, validatedData);
 
     const updatedCategory = await Category.findOneAndUpdate(
       { _id: { $eq: id } },
@@ -456,17 +456,17 @@ export const updateCategoryService = async (id, updateData) => {
     );
 
     if (!updatedCategory) {
-      console.error(`Category not found with ID: ${id}`);
+      logger.error(`Category not found with ID: ${id}`);
       throw new Error("Category not found");
     }
 
-    console.log(`Category ${id} updated successfully`);
+    logger.info(`Category ${id} updated successfully`);
     return CategoryValidationSchema.parse(updatedCategory.toObject());
   } catch (error) {
-    console.error(`Error updating category %s:`, id, error);
+    logger.error(`Error updating category %s:`, id, error);
     if (error.errors) {
       // Log validation errors in detail
-      console.error(`Validation errors:`, JSON.stringify(error.errors, null, 2));
+      logger.error(`Validation errors:`, JSON.stringify(error.errors, null, 2));
     }
     throw error;
   }

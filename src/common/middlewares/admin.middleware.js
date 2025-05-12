@@ -1,5 +1,8 @@
 import jwt from "jsonwebtoken";
 import { User } from "../../modules/user/user.schema.js";
+import { debugLogger } from "./debug-logger.js";
+
+const logger = debugLogger("admin-middleware");
 
 /**
  * Middleware to verify admin authentication
@@ -63,7 +66,7 @@ export const adminMiddleware = async (req, res, next) => {
       }
     );
   } catch (error) {
-    console.error("Admin middleware error:", error);
+    logger.error("Admin middleware error:", error);
     res.status(500).json({ message: "Authentication error" });
   }
 };

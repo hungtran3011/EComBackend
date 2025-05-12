@@ -42,17 +42,17 @@ mongoose.connect(queryString, {
   ssl: true,
   tls: true
 }).then(() => {
-  console.log("Connected to MongoDB");
+  logger.info("Connected to MongoDB");
 
 }).catch((error) => {
-  console.error(error);
+  logger.error(error);
 })
 
 // Đảm bảo Redis cũng được kết nối
 if (!redisService.isConnected()) {
   redisService.connect()
-    .then(() => console.log('Redis service initialized'))
-    .catch(err => console.error('Failed to initialize Redis:', err));
+    .then(() => logger.info('Redis service initialized'))
+    .catch(err => logger.error('Failed to initialize Redis:', err));
 }
 
 
@@ -82,7 +82,7 @@ app.use("/api", MainRouter);
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(err.stack);
   res.status(500).json({
     message: "Something went wrong!",
     error: process.env.NODE_ENV === 'production' ? {} : err
@@ -90,14 +90,14 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+  logger.log(`Server running on port ${port}`);
 })
 
 swaggerDocs(app, port);
 
 // Và thêm vào phần tắt ứng dụng
 process.on('SIGINT', async () => {
-  console.log('Shutting down server...');
+  logger.log('Shutting down server...');
   
   // Đóng kết nối Redis
   await redisService.disconnect();

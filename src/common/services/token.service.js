@@ -1,6 +1,10 @@
 import redisService from './redis.service.js';
 import jwt from 'jsonwebtoken';
 import { config } from 'dotenv';
+import { debugLogger } from '../middlewares/debug-logger.js';
+
+config();
+const logger = debugLogger('token-service');
 
 
 /**
@@ -133,7 +137,7 @@ const saveRefreshToken = async (userId, refreshToken, isAdmin = false) => {
     await redisService.expire(userTokensKey, DEFAULT_REFRESH_TOKEN_TTL * 2);
     
   } catch (error) {
-    console.error(`Lỗi khi lưu refresh token: ${error.message}`);
+    logger.error(`Lỗi khi lưu refresh token: ${error.message}`);
     throw error;
   }
 };
@@ -181,7 +185,7 @@ const verifyRefreshToken = async (refreshToken) => {
     if (error.name === 'TokenExpiredError') {
       throw new Error('Refresh token has expired');
     }
-    console.error(`Lỗi khi xác minh refresh token: ${error.message}`);
+    logger.error(`Lỗi khi xác minh refresh token: ${error.message}`);
     throw error;
   }
 };
@@ -213,7 +217,7 @@ const revokeRefreshToken = async (refreshToken) => {
     
     return true;
   } catch (error) {
-    console.error(`Lỗi khi thu hồi refresh token: ${error.message}`);
+    logger.error(`Lỗi khi thu hồi refresh token: ${error.message}`);
     return false;
   }
 };
@@ -244,7 +248,7 @@ const revokeAllUserRefreshTokens = async (userId) => {
     
     return true;
   } catch (error) {
-    console.error(`Lỗi khi thu hồi tất cả refresh tokens: ${error.message}`);
+    logger.error(`Lỗi khi thu hồi tất cả refresh tokens: ${error.message}`);
     return false;
   }
 };
@@ -292,7 +296,7 @@ const blacklistAccessToken = async (accessToken) => {
     
     return true;
   } catch (error) {
-    console.error(`Lỗi khi thêm token vào blacklist: ${error.message}`);
+    logger.error(`Lỗi khi thêm token vào blacklist: ${error.message}`);
     return false;
   }
 };
@@ -311,7 +315,7 @@ const isTokenBlacklisted = async (accessToken) => {
     const result = await redisService.exists(`${TOKEN_PREFIXES.BLACKLIST}${tokenHash}`);
     return result;
   } catch (error) {
-    console.error(`Lỗi khi kiểm tra token blacklist: ${error.message}`);
+    logger.error(`Lỗi khi kiểm tra token blacklist: ${error.message}`);
     return false;
   }
 };

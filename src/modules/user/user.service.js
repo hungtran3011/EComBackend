@@ -2,6 +2,9 @@ import { User } from "./user.schema.js";
 import { OtpEmailValidationSchema, OtpPhoneNumberValidationSchema } from "../../common/validators/otp.validator.js";
 import { UserValidationSchema } from "../../common/validators/user.validator.js";
 import mongoose from "mongoose";
+import { debugLogger } from "../../common/middlewares/debug-logger.js";
+
+const logger = debugLogger("user-service");
 
 /**
  * @name findUserByEmailOrPhone
@@ -126,7 +129,7 @@ const findAdminByEmailOrPhone = async (email, phoneNumber) => {
     const validPhone = OtpPhoneNumberValidationSchema.parse(phoneNumber)
     query.phoneNumber = validPhone;
   }
-  console.log(query.email)
+  logger.info(query.email)
   
   return await User.findOne(query);
 }

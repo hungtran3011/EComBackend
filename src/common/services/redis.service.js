@@ -1,7 +1,9 @@
 import { createClient } from 'redis';
 import { config } from 'dotenv';
+import { debugLogger } from '../middlewares/debug-logger.js';
 
 config();
+const logger = debugLogger('redis-service');
 
 /**
  * @name RedisService
@@ -34,22 +36,22 @@ const initializeClient = () => {
 
   // Xử lý các sự kiện kết nối
   client.on('connect', () => {
-    console.log('Đang kết nối đến Redis...');
+    logger.info('Đang kết nối đến Redis...');
   });
 
   client.on('ready', () => {
-    console.log('Đã kết nối thành công đến Redis!');
+    logger.info('Đã kết nối thành công đến Redis!');
     isReady = true;
     reconnectAttempts = 0;
   });
 
   client.on('error', (err) => {
-    console.error('Lỗi Redis:', err);
+    logger.error('Lỗi Redis:', err);
     isReady = false;
   });
 
   client.on('end', () => {
-    console.log('Đã ngắt kết nối từ Redis');
+    logger.info('Đã ngắt kết nối từ Redis');
     isReady = false;
   });
 
@@ -66,12 +68,12 @@ const initializeClient = () => {
  */
 const reconnectStrategy = (retries) => {
   if (reconnectAttempts >= maxReconnectAttempts) {
-    console.error(`Đã vượt quá số lần thử kết nối lại (${maxReconnectAttempts}). Dừng kết nối Redis.`);
+    logger.error(`Đã vượt quá số lần thử kết nối lại (${maxReconnectAttempts}). Dừng kết nối Redis.`);
     return new Error('Vượt quá số lần thử kết nối lại Redis');
   }
   
   reconnectAttempts += 1;
-  console.log(`Đang thử kết nối lại Redis... (Lần thử ${reconnectAttempts}/${maxReconnectAttempts})`);
+  logger.info(`Đang thử kết nối lại Redis... (Lần thử ${reconnectAttempts}/${maxReconnectAttempts})`);
   
   // Tăng thời gian chờ theo cấp số nhân, nhưng không quá 30 giây
   const delay = Math.min(Math.pow(2, retries) * 1000, 30000);
@@ -88,7 +90,7 @@ const connect = async () => {
     try {
       await client.connect();
     } catch (error) {
-      console.error('Không thể kết nối đến Redis:', error);
+      logger.error('Không thể kết nối đến Redis:', error);
     }
   }
 };
@@ -102,9 +104,9 @@ const disconnect = async () => {
   if (client && client.isOpen) {
     try {
       await client.quit();
-      console.log('Đã đóng kết nối Redis một cách an toàn');
+      logger.info('Đã đóng kết nối Redis một cách an toàn');
     } catch (error) {
-      console.error('Lỗi khi đóng kết nối Redis:', error);
+      logger.error('Lỗi khi đóng kết nối Redis:', error);
     }
   }
 };
@@ -155,7 +157,7 @@ const set = async (key, value, expiry = null) => {
     
     return await client.set(key, stringValue);
   } catch (error) {
-    console.error("Lỗi khi lưu khóa %s", key, error);
+    logger.error("Lỗi khi lưu khóa %s", key, error);
     throw error;
   }
 };
@@ -184,7 +186,7 @@ const get = async (key, parse = false) => {
     
     return value;
   } catch (error) {
-    console.error(`Lỗi khi lấy khóa %s:`, key, error);
+    logger.error(`Lỗi khi lấy khóa %s:`, key, error);
     throw error;
   }
 };
@@ -201,7 +203,7 @@ const del = async (...keys) => {
 
     return await client.del(keys);
   } catch (error) {
-    console.error("Lỗi khi xóa khóa %s:", keys.join(", "), error);
+    logger.error("Lỗi khi xóa khóa %s:", keys.join(", "), error);
     throw error;
   }
 };
@@ -219,7 +221,7 @@ const exists = async (key) => {
     const result = await client.exists(key);
     return result === 1;
   } catch (error) {
-    console.error(`Lỗi khi kiểm tra tồn tại khóa %s:`, key, error);
+    logger.error(`Lỗi khi kiểm tra tồn tại khóa %s:`, key, error);
     throw error;
   }
 };
@@ -238,7 +240,7 @@ const expire = async (key, seconds) => {
     const result = await client.expire(key, seconds);
     return result === 1;
   } catch (error) {
-    console.error(`Lỗi khi thiết lập hết hạn khóa %s:`, key, error);
+    logger.error(`Lỗi khi thiết lập hết hạn khóa %s:`, key, error);
     throw error;
   }
 };
@@ -255,7 +257,7 @@ const incr = async (key) => {
 
     return await client.incr(key);
   } catch (error) {
-    console.error(`Lỗi khi tăng giá trị khóa %s:`, key, error);
+    logger.error(`Lỗi khi tăng giá trị khóa %s:`, key, error);
     throw error;
   }
 };
@@ -275,7 +277,7 @@ const hSet = async (key, field, value) => {
     const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
     return await client.hSet(key, field, stringValue);
   } catch (error) {
-    console.error(`Lỗi khi thiết lập trường %s trong hash %s:`, field, key, error);
+    logger.error(`Lỗi khi thiết lập trường %s trong hash %s:`, field, key, error);
     throw error;
   }
 };
@@ -304,7 +306,7 @@ const hGet = async (key, field, parse = false) => {
     
     return value;
   } catch (error) {
-    console.error(`Lỗi khi lấy trường %s từ hash %s:`, field, key, error);
+    logger.error(`Lỗi khi lấy trường %s từ hash %s:`, field, key, error);
     throw error;
   }
 };
@@ -320,7 +322,7 @@ const flushDb = async () => {
 
     return await client.flushDb();
   } catch (error) {
-    console.error('Lỗi khi xóa toàn bộ dữ liệu Redis:', error);
+    logger.error('Lỗi khi xóa toàn bộ dữ liệu Redis:', error);
     throw error;
   }
 };
@@ -351,7 +353,7 @@ const hGetAll = async (key, parseValues = false) => {
     
     return result || {};
   } catch (error) {
-    console.error(`Lỗi khi lấy tất cả từ hash %s:`, key, error);
+    logger.error(`Lỗi khi lấy tất cả từ hash %s:`, key, error);
     throw error;
   }
 };
@@ -369,7 +371,7 @@ const hDel = async (key, ...fields) => {
 
     return await client.hDel(key, ...fields);
   } catch (error) {
-    console.error(`Lỗi khi xóa field từ hash %s:`, key, error);
+    logger.error(`Lỗi khi xóa field từ hash %s:`, key, error);
     throw error;
   }
 };
