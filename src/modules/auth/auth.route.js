@@ -4,7 +4,7 @@ import { Router } from "express"
 import { userMiddleware, adminMiddleware } from "../user/user.middleware.js"
 import cookieParser from "cookie-parser";
 import session from "express-session";
-import {csrfProtection} from "../../common/middlewares/csrf.middleware.js"
+import {csrfProtection, generateCsrfToken} from "../../common/middlewares/csrf.middleware.js"
 import { debugLogger } from "../../common/middlewares/debug-logger.js";
 
 const router = Router()
@@ -151,7 +151,6 @@ router.get("/csrf-token", async (req, res) => {
     logger.debug("CSRF token request received");
     
     // Create a consistent token from the session secret (create or reuse)
-    const { generateCsrfToken } = await import('../../common/middlewares/csrf.middleware.js');
     csrfToken = await generateCsrfToken(req);
     
     // Set the cookie with the same options as in middleware

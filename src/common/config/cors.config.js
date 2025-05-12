@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { debugLogger } from "./debug-logger.js";
+import { debugLogger } from "../middlewares/debug-logger.js";
 
 config();
 
