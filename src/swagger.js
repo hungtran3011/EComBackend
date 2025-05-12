@@ -5,7 +5,7 @@ import path from 'path';
 import express from 'express';
 import { config } from 'dotenv';
 
-import { debugLogger } from './common/middlewares/debug-logger';
+import { debugLogger } from './common/middlewares/debug-logger.js';
 
 config()
 

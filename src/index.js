@@ -89,14 +89,14 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(port, () => {
-  logger.log(`Server running on port ${port}`);
+  logger.info(`Server running on port ${port}`);
 })
 
 swaggerDocs(app, port);
 
 // Và thêm vào phần tắt ứng dụng
 process.on('SIGINT', async () => {
-  logger.log('Shutting down server...');
+  logger.info('Shutting down server...');
   
   // Đóng kết nối Redis
   await redisService.disconnect();
