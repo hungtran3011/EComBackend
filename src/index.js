@@ -6,7 +6,7 @@ import morgan from "morgan";
 import fs from 'fs';
 import path from "path";
 import { fileURLToPath } from 'url';
-import { httpDebugLogger } from "./common/middlewares/debug-logger.js";
+import { httpDebugLogger, debugLogger } from "./common/middlewares/debug-logger.js";
 
 import { corsOptions } from "./common/config/cors.config.js";
 import { MainRouter } from "./api/routes.js";
@@ -14,7 +14,6 @@ import swaggerDocs from "./swagger.js";
 import { securityMiddleware } from "./common/middlewares/security.middleware.js";
 import redisService from './common/services/redis.service.js';
 import { csrfProtection } from "./common/middlewares/csrf.middleware.js";
-import { debugLogger } from "./common/middlewares/debug-logger.js";
 
 // Create __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
