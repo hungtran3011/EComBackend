@@ -151,7 +151,7 @@ router.get("/csrf-token", async (req, res) => {
     logger.debug("CSRF token request received");
     
     // Generate token
-    const csrfToken = tokens.create(process.env.CSRF_TOKEN_SECRET);
+    const csrfToken = generateCsrfToken(req);
     
     // Dynamically determine domain from request or env
     const domain = process.env.NODE_ENV === 'production' 
