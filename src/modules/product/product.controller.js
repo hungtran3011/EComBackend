@@ -309,29 +309,6 @@ const deleteProduct = async (req, res) => {
 };
 
 /**
- * @swagger
- * /product/categories:
- *   get:
- *     summary: Lấy danh sách tất cả các danh mục sản phẩm
- *     description: >
- *       Trả về danh sách tất cả các danh mục sản phẩm có trong cửa hàng.
- *       Giống như bảng chỉ dẫn các khu vực trong siêu thị vậy!
- *       Giúp khách hàng dễ dàng định hướng và tìm kiếm sản phẩm theo nhóm
- *       mà không cần phải lướt qua tất cả các sản phẩm.
- *     tags: [Categories]
- *     responses:
- *       200:
- *         description: Danh sách các danh mục sản phẩm đã được trả về thành công!
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: string
- *       500:
- *         description: Máy chủ gặp vấn đề khi truy xuất danh mục. Vui lòng thử lại sau!
- */
-/**
  * @name getAllCategories
  * @author hungtran3011
  * @description Lấy danh sách tất cả các danh mục sản phẩm hiện có trong cửa hàng.
@@ -347,37 +324,6 @@ const getAllCategories = async (req, res) => {
   }
 };
 
-/**
- * @swagger
- * /product/category/{id}:
- *   get:
- *     summary: Lấy thông tin chi tiết của danh mục theo ID
- *     description: >
- *       Cung cấp thông tin chi tiết về một danh mục cụ thể dựa trên ID.
- *       Giống như khi bạn đọc bảng chỉ dẫn chi tiết cho một khu vực trong siêu thị vậy!
- *       Bạn sẽ biết được mọi thông tin về danh mục - từ tên, mô tả, đến các trường dữ liệu đặc trưng.
- *     tags: [Categories]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: ID duy nhất của danh mục
- *     responses:
- *       200:
- *         description: Thông tin chi tiết về danh mục đã được trả về thành công!
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Category'
- *       400:
- *         description: ID danh mục không hợp lệ hoặc không được cung cấp.
- *       404:
- *         description: Không tìm thấy danh mục với ID này. Có lẽ nó đã bị xóa hoặc chưa từng tồn tại?
- *       500:
- *         description: Máy chủ gặp vấn đề khi tìm kiếm danh mục. Hãy thử lại sau!
- */
 /**
  * @name getCategoryById
  * @author hungtran3011
@@ -397,66 +343,35 @@ const getCategoryById = async (req, res) => {
 };
 
 /**
- * @swagger
- * /product/category:
- *   post:
- *     summary: Tạo danh mục mới
- *     description: >
- *       Thêm một danh mục sản phẩm mới vào cửa hàng.
- *       Giống như khi bạn tạo ra một khu vực mới trong siêu thị vậy!
- *       Bạn có thể định nghĩa các trường thông tin đặc trưng cho danh mục,
- *       giúp việc quản lý và hiển thị sản phẩm trở nên linh hoạt hơn.
- *     tags: [Categories]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *             properties:
- *               name:
- *                 type: string
- *                 description: Tên danh mục (đặt tên ngắn gọn, dễ nhớ!)
- *               description:
- *                 type: string
- *                 description: Mô tả chi tiết về danh mục
- *               fields:
- *                 type: array
- *                 description: Các trường dữ liệu đặc trưng của danh mục
- *                 items:
- *                   type: object
- *                   required:
- *                     - name
- *                     - type
- *                   properties:
- *                     name:
- *                       type: string
- *                       description: Tên trường dữ liệu
- *                     type:
- *                       type: string
- *                       enum: [String, Number, Date, Boolean, ObjectId, Array, Mixed]
- *                       description: Loại dữ liệu của trường
- *                     required:
- *                       type: boolean
- *                       description: Trường dữ liệu có bắt buộc hay không
- *     responses:
- *       201:
- *         description: Danh mục mới đã được tạo thành công!
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Category'
- *       400:
- *         description: Thông tin danh mục không hợp lệ. Tên danh mục không được để trống!
- *       401:
- *         description: Bạn không có quyền tạo danh mục mới. Vui lòng đăng nhập!
- *       500:
- *         description: Máy chủ gặp vấn đề khi tạo danh mục mới. Hãy thử lại sau!
+ * @name getCategoryByName
+ * @author hungtran3011
+ * @description Lấy thông tin chi tiết của một danh mục dựa trên tên
+ * @param {string} name - Tên danh mục cần truy vấn
+ * @param {*} req
+ * @param {*} res
  */
+const getCategoryByName = async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { page, limit, sortBy } = req.query;
+    
+    // Pass query parameters to service
+    const result = await ProductService.getCategoryByNameService(name, {
+      page, 
+      limit, 
+      sortBy
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error(`Error in getCategoryByName: ${error.message}`);
+    if (error.message === "Category not found") {
+      return res.status(404).json({ message: error.message });
+    }
+    res.status(500).json({ message: error.message });
+  }
+}
+
 /**
  * @name createCategory
  * @author hungtran3011
@@ -479,71 +394,6 @@ const createCategory = async (req, res) => {
 };
 
 /**
- * @swagger
- * /product/category/{id}:
- *   put:
- *     summary: Cập nhật thông tin danh mục
- *     description: >
- *       Cập nhật thông tin cho danh mục đã có trong cửa hàng.
- *       Giống như khi bạn cải tạo lại một khu vực trong siêu thị vậy!
- *       Bạn có thể thay đổi tên, mô tả hoặc các trường dữ liệu đặc trưng của danh mục.
- *       Chỉ người dùng đã đăng nhập mới có thể thực hiện thao tác này.
- *     tags: [Categories]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: ID của danh mục cần cập nhật
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 description: Tên mới của danh mục
- *               description:
- *                 type: string
- *                 description: Mô tả mới về danh mục
- *               fields:
- *                 type: array
- *                 description: Các trường dữ liệu đặc trưng mới của danh mục
- *                 items:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                       description: Tên trường dữ liệu
- *                     type:
- *                       type: string
- *                       enum: [String, Number, Date, Boolean, ObjectId, Array, Mixed]
- *                       description: Loại dữ liệu của trường
- *                     required:
- *                       type: boolean
- *                       description: Trường dữ liệu có bắt buộc hay không
- *     responses:
- *       200:
- *         description: Thông tin danh mục đã được cập nhật thành công!
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Category'
- *       400:
- *         description: Dữ liệu cập nhật không hợp lệ hoặc ID danh mục không đúng định dạng.
- *       401:
- *         description: Bạn không có quyền cập nhật danh mục. Vui lòng đăng nhập!
- *       404:
- *         description: Không tìm thấy danh mục với ID này. Có lẽ nó đã bị xóa hoặc chưa từng tồn tại?
- *       500:
- *         description: Máy chủ gặp vấn đề khi cập nhật danh mục. Hãy thử lại sau!
- */
-/**
  * @name updateCategory
  * @author hungtran3011
  * @description Cập nhật thông tin danh mục. Người dùng phải đăng nhập để thực hiện thao tác này.
@@ -565,38 +415,6 @@ const updateCategory = async (req, res) => {
   }
 };
 
-/**
- * @swagger
- * /product/category/{id}:
- *   delete:
- *     summary: Xóa danh mục
- *     description: >
- *       Xóa một danh mục khỏi cửa hàng.
- *       Giống như khi bạn loại bỏ hoàn toàn một khu vực trong siêu thị vậy!
- *       Lưu ý: Chức năng này có thể ảnh hưởng đến các sản phẩm thuộc danh mục bị xóa.
- *       Chỉ người dùng đã đăng nhập mới có thể thực hiện thao tác này.
- *     tags: [Categories]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: ID của danh mục cần xóa
- *     responses:
- *       200:
- *         description: Danh mục đã được xóa thành công!
- *       400:
- *         description: ID danh mục không hợp lệ hoặc không được cung cấp.
- *       401:
- *         description: Bạn không có quyền xóa danh mục. Vui lòng đăng nhập!
- *       404:
- *         description: Không tìm thấy danh mục với ID này. Có lẽ nó đã bị xóa trước đó hoặc chưa từng tồn tại?
- *       500:
- *         description: Máy chủ gặp vấn đề khi xóa danh mục. Hãy thử lại sau!
- */
 /**
  * @name deleteCategory
  * @author hungtran3011
@@ -795,6 +613,7 @@ const ProductControllers = {
   deleteProduct,
   getAllCategories,
   getCategoryById,
+  getCategoryByName,
   createCategory,
   updateCategory,
   deleteCategory,

@@ -42,6 +42,7 @@ router.get("/category", IPRateLimiter, ProductControllers.getAllCategories);
 router.get("/:id", IPRateLimiter, ProductControllers.getProductById);
 
 router.get("/category/:id", IPRateLimiter, ProductControllers.getCategoryById);
+router.get("/category/name/:name", IPRateLimiter, ProductControllers.getCategoryByName);
 
 router.post("/", IPRateLimiter, adminMiddleware, ProductControllers.createProduct);
 router.put("/:id", IPRateLimiter, adminMiddleware, ProductControllers.updateProduct);

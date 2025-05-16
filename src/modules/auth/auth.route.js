@@ -108,37 +108,6 @@ router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
 })
 
 /**
- * @swagger
- * /auth/csrf-token:
- *   get:
- *     tags: [Auth]
- *     summary: Get a CSRF token
- *     description: Get a CSRF token for use in subsequent requests. The token remains stable for the session duration.
- *     security:
- *        - cookieAuth: []
- *     responses:
- *       200:
- *         description: Success response with CSRF token
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 csrfToken:
- *                   type: string
- *                   description: Token to be included in X-CSRF-Token header for requests
- *       500:
- *         description: Server Error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- */
-
-/**
  * GET /auth/csrf-token
  * @summary Get a new CSRF token
  * @tags Authentication
