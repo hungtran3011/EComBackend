@@ -25,4 +25,9 @@ export const UserValidationSchema = z.object({
     state: z.string().optional(),
     province: z.string().optional()
   }).optional(),
+  role: z.enum(["customer", "admin", "anon"]).optional(),
+  avatarUrl: z.string().optional(),
+  isRegistered: z.boolean().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional()
 });

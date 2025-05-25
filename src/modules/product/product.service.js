@@ -365,9 +365,21 @@ export const deleteProductService = async (id) => {
  * @returns {Promise<Array>} Danh sách các danh mục
  */
 export const getAllCategoriesService = async () => {
-  const categories = await Category.find();
-  logger.info(categories);
-  return CategoriesValidationSchema.parse(categories);
+  logger.info("Getting all categories from database");
+  try {
+    const categories = await Category.find();
+    logger.info(`Retrieved ${categories.length} categories from database`);
+    
+    // Add category names for debugging purposes
+    logger.debug(`Category names: ${categories.map(cat => cat.name).join(', ')}`);
+    
+    const validatedCategories = CategoriesValidationSchema.parse(categories);
+    logger.info("Categories validated successfully");
+    return validatedCategories;
+  } catch (error) {
+    logger.error("Error retrieving categories:", error);
+    throw error;
+  }
 };
 
 /**

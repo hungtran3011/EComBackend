@@ -316,10 +316,16 @@ const deleteProduct = async (req, res) => {
  * @param {*} res 
  */
 const getAllCategories = async (req, res) => {
+  logger.debug('getAllCategories: Starting to fetch all product categories');
+  
   try {
+    logger.debug('getAllCategories: Calling product service');
     const result = await ProductService.getAllCategoriesService();
+    
+    logger.debug(`getAllCategories: Successfully retrieved ${result.length || 0} categories`);
     res.status(200).json(result);
   } catch (error) {
+    logger.error('getAllCategories: Error retrieving categories:', error);
     res.status(500).json({ message: error.message });
   }
 };
