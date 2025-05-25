@@ -25,9 +25,12 @@ const getAllOrders = async (status, user, page = 1, limit = 10) => {
   let query = {};
   
   // Apply status filter if valid
-  if (status && allowedStatuses.includes(status)) {
+  if (typeof status === "string" && allowedStatuses.includes(status)) {
     query.status = status;
     logger.debug(`getAllOrders: Filtering by status: ${status}`);
+  } else if (status) {
+    logger.error(`getAllOrders: Invalid status value provided: ${status}`);
+    throw new Error("Invalid status value provided");
   }
   
   // If not admin, only show user's own orders
