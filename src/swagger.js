@@ -248,6 +248,7 @@ const swaggerDocs = (app, port) => {
     explorer: true,
     // customCss: '.swagger-ui .topbar { display: none }',
     swaggerOptions: {
+      prefix: '/api',
       persistAuthorization: true,
       docExpansion: 'none', // Collapse endpoints by default
       filter: true, // Add a search field

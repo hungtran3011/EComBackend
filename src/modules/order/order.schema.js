@@ -70,7 +70,31 @@ export const OrderItemModel = mongoose.model("OrderItem", OrderItemSchema);
  */
 export const OrderSchema = mongoose.Schema({  
   items: [OrderItemSchema],  
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },  
+  
+  // Make user optional for guest orders
+  user: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: function() { return !this.isGuestOrder; }  // Only required for registered users
+  },
+  
+  // Add guest order flag and customer info
+  isGuestOrder: {
+    type: Boolean,
+    default: false
+  },
+  
+  customerInfo: {
+    name: { type: String },
+    email: { type: String },
+    phoneNumber: { type: String }
+  },
+  
+  trackingCode: {
+    type: String,
+    sparse: true  // Sparse index for tracking codes
+  },
+  
   status: { 
     type: String, 
     required: true, 

@@ -33,7 +33,14 @@ fs.existsSync(uploadsDirectory) || fs.mkdirSync(uploadsDirectory, { recursive: t
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.set('trust proxy', true);
+// Replace this line
+if (process.env.NODE_ENV === 'production') {
+  // Trust only first proxy in production (like Cloudflare or load balancer)
+  app.set('trust proxy', 1);
+} else {
+  // In development, you can keep it more permissive
+  app.set('trust proxy', true);
+}
 
 const queryString = process.env.MONGO_READ_WRITE_URI;
 

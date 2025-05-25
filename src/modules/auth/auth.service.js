@@ -11,7 +11,7 @@ import { debugLogger } from "../../common/middlewares/debug-logger.js";
 const COOKIE_CONFIG = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 ngày
 };
 
@@ -195,11 +195,23 @@ const handleRefreshToken = async (refreshToken) => {
     // Xác minh refresh token từ Redis
     const decoded = await tokenService.verifyRefreshToken(refreshToken);
     
-    // Tạo access token mới
-    const accessToken = tokenService.generateAccessToken(decoded.id);
+    // Extract proper user info from the token
+    const userInfo = {
+      id: decoded.user.id || decoded.user._id,
+      role: decoded.user.role,
+      avatarUrl: decoded.user.avatarUrl,
+      email: decoded.user.email
+    };
+    
+    // Pass the whole user object with proper isAdmin flag
+    const accessToken = tokenService.generateAccessToken(
+      userInfo, 
+      decoded.isAdmin || false
+    );
     
     return { accessToken };
   } catch (error) {
+    logger.error('Refresh token error:', error);
     throw { status: 403, message: "Refresh token không hợp lệ hoặc đã hết hạn" };
   }
 };

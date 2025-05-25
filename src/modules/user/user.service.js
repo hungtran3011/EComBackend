@@ -40,6 +40,8 @@ const findUserByEmailOrPhone = async (email, phoneNumber) => {
  * @returns {Promise<Object>} Danh sách người dùng và thông tin phân trang
  */
 const getAllUsers = async (start = 0, limit = 10) => {
+  logger.debug(`getAllUsers: Fetching users with start=${start}, limit=${limit}`);
+  
   // Convert parameters to integers
   const startIndex = parseInt(start);
   const limitCount = parseInt(limit);
@@ -48,8 +50,11 @@ const getAllUsers = async (start = 0, limit = 10) => {
   const total = await User.countDocuments();
   const pages = Math.ceil(total / limitCount);
   
+  logger.debug(`getAllUsers: Total users: ${total}, Pages: ${pages}`);
+  
   // Always return pagination info, even with empty results
   if (total === 0) {
+    logger.debug('getAllUsers: No users found');
     return {
       pages: 0,
       limit: limitCount,
@@ -58,13 +63,15 @@ const getAllUsers = async (start = 0, limit = 10) => {
     };
   }
   
-  // Fetch users with pagination
+  // Fetch users with pagination, exclude sensitive fields
   const userList = await User.find({})
     .skip(startIndex)
     .limit(limitCount)
     .select('-password -refreshToken -__v');
 
-  // Transform users through validation schema
+  logger.debug(`getAllUsers: Retrieved ${userList.length} users`);
+  
+  // Transform users through validation schema, including all fields
   const returnUserList = userList.map(user => {
     return UserValidationSchema.parse({
       id: user._id.toString(),
@@ -72,10 +79,15 @@ const getAllUsers = async (start = 0, limit = 10) => {
       email: user.email,
       phoneNumber: user.phoneNumber,
       address: user.address,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+      isRegistered: user.isRegistered,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
     });
   });
 
-  // Return consistent response format
+  // Return consistent response format with all fields
   return {
     pages,
     limit: limitCount,

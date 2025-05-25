@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 const uploadRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
+  trustProxy: process.env.NODE_ENV === 'production' ? 1 : true,
   keyGenerator: (req) => req.params.id,
   handler: (req, res) => {
     res.status(429).json({
@@ -39,9 +40,21 @@ const uploadRateLimiter = rateLimit({
 const IPRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  trustProxy: process.env.NODE_ENV === 'production' ? 1 : true,
   keyGenerator: (req) => {
-    // Use req.ip which properly respects the trust proxy setting
-    const ipAddress = req.ip || "Unknown IP";
+    // For production environments with Cloudflare
+    // Get client IP using X-Forwarded-For header
+    let ipAddress;
+    
+    if (process.env.NODE_ENV === 'production') {
+      // In production, trust the leftmost proxy
+      const forwardedIps = req.headers['x-forwarded-for'];
+      ipAddress = forwardedIps ? forwardedIps.split(',')[0].trim() : req.ip;
+    } else {
+      // In development, use standard Express IP resolution
+      ipAddress = req.ip;
+    }
+    
     const userAgent = req.headers["user-agent"] || "Unknown User Agent";
     return `${ipAddress}::${userAgent}`;
   },
@@ -51,6 +64,9 @@ const IPRateLimiter = rateLimit({
       retryAfter: 900,
     });
   },
+  // Add standardHeaders and legacyHeaders options for comprehensive rate limit info
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 export { uploadRateLimiter, IPRateLimiter };

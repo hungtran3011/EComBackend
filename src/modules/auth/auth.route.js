@@ -4,9 +4,11 @@ import { Router } from "express"
 import { userMiddleware, adminMiddleware } from "../user/user.middleware.js"
 import cookieParser from "cookie-parser";
 import session from "express-session";
+import { config } from "dotenv";
 import {csrfProtection, generateCsrfToken} from "../../common/middlewares/csrf.middleware.js"
 import { debugLogger } from "../../common/middlewares/debug-logger.js";
 
+config();
 const router = Router()
 const logger = debugLogger("auth-route")
 
@@ -19,7 +21,7 @@ router.use(session({
   cookie: { 
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'none',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }))
@@ -106,37 +108,6 @@ router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
 })
 
 /**
- * @swagger
- * /auth/csrf-token:
- *   get:
- *     tags: [Auth]
- *     summary: Get a CSRF token
- *     description: Get a CSRF token for use in subsequent requests. The token remains stable for the session duration.
- *     security:
- *        - cookieAuth: []
- *     responses:
- *       200:
- *         description: Success response with CSRF token
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 csrfToken:
- *                   type: string
- *                   description: Token to be included in X-CSRF-Token header for requests
- *       500:
- *         description: Server Error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- */
-
-/**
  * GET /auth/csrf-token
  * @summary Get a new CSRF token
  * @tags Authentication
@@ -146,35 +117,35 @@ router.get("/check-auth", IPRateLimiter, userMiddleware, (req, res) => {
  */
 router.get("/csrf-token", async (req, res) => {
   try {
-    // Check for existing token
-    let csrfToken = req.cookies['csrf-token'];
     logger.debug("CSRF token request received");
     
-    // Create a consistent token from the session secret (create or reuse)
-    csrfToken = await generateCsrfToken(req);
+    // Generate token
+    const csrfToken = await generateCsrfToken();
     
-    // Set the cookie with the same options as in middleware
-    // But only if it doesn't already exist
-    if (!req.cookies['csrf-token']) {
-      logger.debug("Setting CSRF token cookie");
-      res.cookie('csrf-token', csrfToken, {
-        path: '/',
-        httpOnly: false,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 3600 * 24 // 24 hours
-      });
-    }
+    // Dynamically determine domain from request or env
+    const domain = process.env.NODE_ENV === 'production' 
+      ? process.env.DOMAIN
+      : undefined;
+      
+    logger.debug(`Using domain for cookie: ${domain || 'localhost'}`);
     
-    // Return the token
-    logger.debug("Returning CSRF token");
+    // Set cookie with domain from environment
+    res.cookie('csrf-token', csrfToken, {
+      path: '/',
+      httpOnly: false,
+      sameSite: 'none',
+      secure: true,
+      domain: domain ? `.${domain}` : undefined, // Add dot prefix for subdomains
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+    
+    logger.debug(`Setting CSRF token cookie`);
+    
+    // Return token in response
     return res.status(200).json({ csrfToken });
   } catch (error) {
     logger.error('CSRF token generation error:', error);
-    return res.status(500).json({ 
-      message: 'Error generating CSRF token',
-      error: process.env.NODE_ENV === 'production' ? undefined : error.message
-    });
+    return res.status(500).json({ message: 'Error generating CSRF token' });
   }
 });
 

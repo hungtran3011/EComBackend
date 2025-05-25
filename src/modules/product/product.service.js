@@ -8,7 +8,7 @@ import {
   isValidMongoId,
 } from "../../common/validators/product.validator.js";
 import redisService from '../../common/services/redis.service.js';
-import mongoose from "mongoose";
+import mongoose, { get } from "mongoose";
 import validateObjectId from "../../common/validators/objectId.validator.js";
 import { validateProductVariation } from "../../common/validators/variation.validator.js";
 import StorageService from "../storage/storage.service.js";
@@ -28,7 +28,7 @@ export const getAllProductsService = async (page, limit) => {
     const startIndex = (page - 1) * limit;
     const total = await Product.countDocuments();
     const products = await Product.find().skip(startIndex).limit(limit);
-    // logger.info(products)
+
     const result = ProductListValidationSchema.parse({ page, limit, total, products });
     logger.info(`Lấy ${products.length} sản phẩm từ database`);
     return result;
@@ -47,17 +47,17 @@ export const getAllProductsService = async (page, limit) => {
  * @returns {Promise<Object>} Thông tin chi tiết sản phẩm
  */
 export const getProductByIdService = async (id, options = {}) => {
-  // Kiểm tra ID hợp lệ
+
   if (!isValidMongoId(id)) {
     throw new Error("Invalid product ID");
   }
 
-  // Tạo khóa cache
+
   const cacheKey = `product:${id}`;
 
-  // Kiểm tra xem có cần bỏ qua cache không
+
   if (!options.skipCache) {
-    // Thử lấy dữ liệu từ cache
+
     const cachedProduct = await redisService.get(cacheKey, true);
 
     if (cachedProduct) {
@@ -68,17 +68,17 @@ export const getProductByIdService = async (id, options = {}) => {
     logger.info(`Bỏ qua cache cho sản phẩm ${id} theo yêu cầu của client`);
   }
 
-  // Nếu không có trong cache hoặc bỏ qua cache, truy vấn từ database
+
   const product = await Product.findById(id).populate('category');
 
   if (!product) {
     throw new Error("Không tìm thấy sản phẩm");
   }
 
-  // Chuyển đổi sang object thuần túy
+
   const productObject = product.toObject();
 
-  // Format response với fields
+
   const result = {
     ...productObject,
     fields: formatFieldValues(productObject.fieldValues)
@@ -86,7 +86,7 @@ export const getProductByIdService = async (id, options = {}) => {
 
   delete result.fieldValues;
 
-  // Lưu vào cache nếu không yêu cầu bỏ qua cache
+
   if (!options.skipCache) {
     await redisService.set(cacheKey, result, 1800);
   }
@@ -115,7 +115,7 @@ export const createProductService = async (productData) => {
   logger.info(productData);
   const { productImages, variations, ...otherData } = productData;
 
-  // Validate basic product data
+
   const { category, fields, ...basicProductData } = otherData;
 
   let categoryObjectId;
@@ -161,13 +161,13 @@ export const createProductService = async (productData) => {
         throw new Error(`Trường "${fieldName}" không được định nghĩa trong danh mục này`);
       }
 
-      // Type validation
+
       const validationError = validateFieldType(fieldValue, categoryField.type);
       if (validationError) {
         throw new Error(validationError);
       }
 
-      // Add to fieldValues
+
       fieldValues.push({
         name: fieldName,
         value: fieldValue
@@ -175,15 +175,15 @@ export const createProductService = async (productData) => {
     }
   }
 
-  // Create product with validated data
+
   const productToCreate = {
     ...basicProductData,
     category,
     fieldValues,
-    hasVariations: true // Always set to true as we'll create at least one variation
+    hasVariations: true
   };
 
-  // Add productImages to the product if provided
+
   if (productImages && Array.isArray(productImages) && productImages.length > 0) {
     productToCreate.productImages = productImages;
   }
@@ -205,7 +205,7 @@ export const createProductService = async (productData) => {
       attributes: []
     }).save();
   } else {
-    // Create provided variations
+
     const variationPromises = variations.map(variation => {
       return new ProductVariation({
         product: addedProduct._id,
@@ -260,7 +260,7 @@ export const updateProductService = async (id, updateData) => {
 
   if (updateData.fields && typeof updateData.fields === 'object' && !Array.isArray(updateData.fields)) {
 
-    // Create a map of existing fields
+
     const fieldMap = {};
     if (existingProduct.fieldValues && existingProduct.fieldValues.length > 0) {
       existingProduct.fieldValues.forEach(field => {
@@ -268,16 +268,16 @@ export const updateProductService = async (id, updateData) => {
       });
     }
 
-    // Update the map with new values
+
     Object.entries(updateData.fields).forEach(([name, value]) => {
-      // Only update if the value is not null/undefined
+
       if (value !== undefined && value !== null && value !== '') {
         fieldMap[name] = value;
       }
     });
 
 
-    // Convert map back to array format
+
     const updatedFieldValues = Object.entries(fieldMap).map(([name, value]) => ({
       name,
       value
@@ -290,22 +290,22 @@ export const updateProductService = async (id, updateData) => {
     processedData.productImages = updateData.productImages;
   }
 
-  // Handle variation updates if provided
+
   if (updateData.variations && Array.isArray(updateData.variations)) {
 
-    // Process each variation
+
     for (const variation of updateData.variations) {
       if (variation._id) {
-        // Update existing variation
+
         await updateProductVariationService(variation._id, variation);
       } else {
-        // Create new variation
+
         variation.product = id;
         await createProductVariationService(id, variation);
       }
     }
 
-    // Remove variations from updateData to avoid processing them in the main update
+
     const { variations, ...dataWithoutVariations } = processedData;
     processedData = dataWithoutVariations;
   }
@@ -351,7 +351,7 @@ export const deleteProductService = async (id) => {
   const deletedProduct = await Product.findOneAndDelete({ _id: { $eq: id } });
   if (!deletedProduct) throw new Error("Product not found");
 
-  // Delete from cache
+
   const cacheKey = `product:${id}`;
   await redisService.del(cacheKey);
   logger.info(`Removed product ${id} from cache`);
@@ -365,9 +365,21 @@ export const deleteProductService = async (id) => {
  * @returns {Promise<Array>} Danh sách các danh mục
  */
 export const getAllCategoriesService = async () => {
-  const categories = await Category.find();
-  logger.info(categories);
-  return CategoriesValidationSchema.parse(categories);
+  logger.info("Getting all categories from database");
+  try {
+    const categories = await Category.find();
+    logger.info(`Retrieved ${categories.length} categories from database`);
+    
+    // Add category names for debugging purposes
+    logger.debug(`Category names: ${categories.map(cat => cat.name).join(', ')}`);
+    
+    const validatedCategories = CategoriesValidationSchema.parse(categories);
+    logger.info("Categories validated successfully");
+    return validatedCategories;
+  } catch (error) {
+    logger.error("Error retrieving categories:", error);
+    throw error;
+  }
 };
 
 /**
@@ -382,6 +394,117 @@ export const getCategoryByIdService = async (id) => {
   const category = await Category.findOne({ _id: { $eq: id } });
   if (!category) throw new Error("Category not found");
   return CategoryValidationSchema.parse(category);
+};
+
+/**
+ * @name getCategoryByNameService
+ * @description Get category by name with its products, supporting pagination and sorting
+ * @param {string} name - Category name
+ * @param {Object} options - Query options (optional)
+ * @param {number} options.page - Page number (default: 1)
+ * @param {number} options.limit - Products per page (default: 10)
+ * @param {string} options.sortBy - Field to sort by (default: 'createdAt')
+ * @returns {Promise<Object>} Category with paginated products
+ * @throws {Error} If name is invalid or category not found
+ */
+export const getCategoryByNameService = async (name, options = {}) => {
+  logger.info(`Finding category by name: ${name}${options ? ' with options' : ''}`);
+  
+  if (!name) {
+    logger.error("Category name is required but was not provided");
+    throw new Error("Category name is required");
+  }
+  
+  // Process name (first letter uppercase, rest lowercase)
+  const processedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  logger.info(`Searching for category with processed name: ${processedName}`);
+  
+  // Find category
+  const category = await Category.findOne({ name: { $eq: processedName } });
+  
+  if (!category) {
+    logger.error(`Category with name '${processedName}' not found`);
+    throw new Error("Category not found");
+  }
+  
+  logger.info(`Found category: ${category._id} with name '${category.name}'`);
+  
+  // Return just category if no options provided
+  if (!options || Object.keys(options).length === 0) {
+    return CategoryValidationSchema.parse(category);
+  }
+  
+  // Sanitize pagination parameters
+  const page = Math.max(1, parseInt(options.page) || 1);
+  const limit = Math.max(1, Math.min(100, parseInt(options.limit) || 10));
+  
+  // Handle MongoDB sort syntax with hyphen prefix
+  let sortField = 'createdAt'; // Default field
+  let sortDirection = -1;      // Default direction (newest first)
+  
+  if (options.sortBy) {
+    // Check if sortBy starts with hyphen (indicating descending order)
+    if (options.sortBy.startsWith('-')) {
+      sortField = options.sortBy.substring(1);
+      sortDirection = -1; // Descending
+    } else {
+      sortField = options.sortBy;
+      sortDirection = 1;  // Ascending
+    }
+    
+    // Validate sort field to prevent injection
+    const validSortFields = ['name', 'price', 'createdAt', 'updatedAt', 'stock'];
+    if (!validSortFields.includes(sortField)) {
+      logger.warn(`Invalid sort field: ${sortField}, defaulting to createdAt`);
+      sortField = 'createdAt';
+      sortDirection = -1;
+    }
+  }
+  
+  // Build MongoDB sort object
+  const sortOption = {};
+  sortOption[sortField] = sortDirection;
+  
+  logger.info(`Finding products for category ${category._id} with sort: ${JSON.stringify(sortOption)}`);
+  
+  // Calculate skip for pagination
+  const skip = (page - 1) * limit;
+  
+  // Find products with pagination and sorting
+  const products = await Product.find({ category: category._id })
+    .sort(sortOption)
+    .skip(skip)
+    .limit(limit)
+    .lean();
+  
+  // Get total count for pagination
+  const total = await Product.countDocuments({ category: category._id });
+  
+  logger.info(`Found ${products.length} products out of ${total} total for category ${category.name}`);
+  
+  // Format products to include field values
+  const formattedProducts = products.map(product => {
+    const result = { ...product };
+    if (product.fieldValues) {
+      result.fields = formatFieldValues(product.fieldValues);
+      delete result.fieldValues;
+    }
+    return result;
+  });
+  
+  // Return comprehensive response
+  return {
+    category: CategoryValidationSchema.parse(category),
+    products: formattedProducts,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page * limit < total,
+      hasPrevPage: page > 1
+    }
+  };
 };
 
 /**
@@ -465,7 +588,7 @@ export const updateCategoryService = async (id, updateData) => {
   } catch (error) {
     logger.error(`Error updating category %s:`, id, error);
     if (error.errors) {
-      // Log validation errors in detail
+
       logger.error(`Validation errors:`, JSON.stringify(error.errors, null, 2));
     }
     throw error;
@@ -498,24 +621,24 @@ export const addProductImagesService = async (id, imageUrls) => {
     throw new Error("Invalid product ID");
   }
 
-  // Find the product first
+
   const product = await Product.findOne({ _id: { $eq: id } });
   if (!product) {
     throw new Error("Product not found");
   }
 
-  // Add new images to the existing array
+
   const currentImages = product.productImages || [];
   const updatedImages = [...currentImages, ...imageUrls];
 
-  // Update the product
+
   const updatedProduct = await Product.findOneAndUpdate(
     { _id: { $eq: id } },
     { $set: { productImages: updatedImages } },
     { new: true }
   );
 
-  // Update cache
+
   const cacheKey = `product:${id}`;
   const result = updatedProduct.toObject();
   result.fields = formatFieldValues(result.fieldValues || []);
@@ -536,27 +659,27 @@ export const removeProductImageService = async (productId, imageId) => {
     throw new Error("Invalid product ID");
   }
 
-  // Find the product first
+
   const product = await Product.findOne({ _id: { $eq: productId } });
   if (!product) {
     throw new Error("Product not found");
   }
 
-  // Filter out the image to remove
+
   const currentImages = product.productImages || [];
   const updatedImages = currentImages.filter(img => {
-    // Check if the image URL contains the public ID
+
     return !img.includes(imageId);
   });
 
-  // Update the product
+
   const updatedProduct = await Product.findOneAndUpdate(
     { _id: { $eq: productId } },
     { $set: { productImages: updatedImages } },
     { new: true }
   );
 
-  // Update cache
+
   const cacheKey = `product:${productId}`;
   const result = updatedProduct.toObject();
   result.fields = formatFieldValues(result.fieldValues || []);
@@ -582,20 +705,20 @@ export const createProductVariationService = async (productId, variationData) =>
     throw new Error("Product not found");
   }
 
-  // Validate variation data
+
   const validatedData = validateProductVariation({
     ...variationData,
     product: productId
   });
 
-  // Create the variation
+
   const variation = new ProductVariation(validatedData);
   await variation.save();
 
-  // Update the parent product to indicate it has variations
+
   await Product.findOneAndUpdate({ _id: { $eq: productId } }, { hasVariations: true });
 
-  // Update storage if stock is provided
+
   if (variation.stock !== undefined) {
     await StorageService.updateVariationQuantity(variation._id, variation.stock);
   }
@@ -634,17 +757,17 @@ export const updateProductVariationService = async (variationId, updateData) => 
   }
   logger.debug("Variation ID validated successfully");
 
-  // Get existing variation to ensure it exists
+
   logger.debug(`Fetching existing variation with ID: ${variationId}`);
   const existingVariation = await ProductVariation.findOne({ _id: { $eq: variationId } });
-  
+
   if (!existingVariation) {
     logger.error(`Variation not found with ID: ${variationId}`);
     throw new Error("Variation not found");
   }
   logger.debug(`Found variation: ${existingVariation._id}, product: ${existingVariation.product}`);
 
-  // Validate update data
+
   try {
     logger.debug("Validating variation data");
     const validatedData = validateProductVariation({
@@ -656,7 +779,7 @@ export const updateProductVariationService = async (variationId, updateData) => 
     logger.debug("Data validation successful", validatedData);
     logger.debug(`Updating variation in database: ${variationId}`);
 
-    // Update the variation
+
     const variation = await ProductVariation.findOneAndUpdate(
       { _id: { $eq: variationId } },
       { $set: validatedData },
@@ -667,11 +790,11 @@ export const updateProductVariationService = async (variationId, updateData) => 
       logger.error(`Database update failed for variation: ${variationId}`);
       throw new Error("Failed to update variation");
     }
-    
+
     logger.debug(`Variation ${variationId} updated successfully in database`);
     logger.debug(`Updated fields: ${Object.keys(validatedData).join(', ')}`);
 
-    // Update storage if stock changed
+
     if (updateData.stock !== undefined) {
       logger.debug(`Stock changed to ${updateData.stock}, updating storage for variation: ${variation._id}`);
       await StorageService.updateVariationQuantity(variation._id, variation.stock);
@@ -679,7 +802,7 @@ export const updateProductVariationService = async (variationId, updateData) => 
     } else {
       logger.debug("Stock unchanged, skipping storage update");
     }
-    
+
     logger.debug(`Returning updated variation: ${variation._id}`);
     return variation.toObject();
   } catch (error) {
@@ -705,13 +828,13 @@ export const deleteProductVariationService = async (variationId) => {
     throw new Error("Variation not found");
   }
 
-  // Check if this was the last variation for the product
+
   const remainingVariations = await ProductVariation.countDocuments({
     product: variation.product
   });
 
   if (remainingVariations === 0) {
-    // Update the parent product to indicate it no longer has variations
+
     await Product.findOneAndUpdate({ _id: { $eq: variation.product } }, { hasVariations: false });
   }
 
@@ -726,6 +849,7 @@ const ProductService = {
   deleteProductService,
   getAllCategoriesService,
   getCategoryByIdService,
+  getCategoryByNameService,
   createCategoryService,
   updateCategoryService,
   deleteCategoryService,

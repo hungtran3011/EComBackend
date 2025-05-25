@@ -36,6 +36,13 @@ export const debugLogger = (context) => {
       const logMessage = `[${timestamp}] [ERROR] [${context}]: ${message} ${data ? JSON.stringify(data) : ''}`;
       console.error("\x1b[31m%s\x1b[0m", logMessage);
       debugLogStream.write(logMessage + '\n');
+    },
+    warn: (message, data) => {
+      if (process.env.DEBUG_MODE !== 'true') return;
+      const timestamp = new Date().toISOString();
+      const logMessage = `[${timestamp}] [WARN] [${context}]: ${message} ${data ? JSON.stringify(data) : ''}`;
+      console.warn("\x1b[33m%s\x1b[0m", logMessage);
+      debugLogStream.write(logMessage + '\n');
     }
   };
 };

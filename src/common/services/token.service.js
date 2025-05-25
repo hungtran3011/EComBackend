@@ -149,43 +149,59 @@ const saveRefreshToken = async (userId, refreshToken, isAdmin = false) => {
  * @returns {Promise<object>} Payload từ token đã xác minh
  */
 const verifyRefreshToken = async (refreshToken) => {
+  logger.debug('Starting refresh token verification process');
   try {
-    // Giải mã token không cần verify trước để lấy userId và jti
+    logger.debug('Decoding refresh token');
     const decoded = jwt.decode(refreshToken);
+    logger.debug('Decoded refresh token:', decoded);
     
-    // Check for valid structure
     if (!decoded || !decoded.jti) {
+      logger.warn('Invalid refresh token format: missing jti');
       throw new Error('Invalid refresh token format: missing jti');
     }
+    logger.debug(`Valid JTI found: ${decoded.jti}`);
     
-    // Check if user object exists and has proper ID
     if (!decoded.user || (!decoded.user.id && !decoded.user._id)) {
+      logger.warn('Invalid refresh token format: missing user ID');
       throw new Error('Invalid refresh token format: missing user ID');
     }
     
-    // Get the user ID, handling both formats
     const userId = decoded.user.id || decoded.user._id;
+    logger.debug(`User ID extracted from token: ${userId}`);
     
     // Kiểm tra xem token có trong Redis không - use correct user ID path
     const tokenKey = `${TOKEN_PREFIXES.REFRESH}${userId}:${decoded.jti}`;
+    logger.debug(`Looking up token in Redis with key: ${tokenKey}`);
+    
     const tokenData = await redisService.get(tokenKey, true);
+    logger.debug('Redis lookup result:', tokenData ? 'Token found' : 'Token not found');
     
     if (!tokenData || tokenData.token !== refreshToken) {
+      logger.warn('Refresh token not found in Redis or token mismatch');
       throw new Error('Refresh token not found or revoked');
     }
+    logger.debug('Token validated in Redis storage');
     
-    // Verify token với secret key phù hợp
     const secret = decoded.isAdmin 
       ? process.env.ADMIN_REFRESH_TOKEN_SECRET || process.env.REFRESH_TOKEN_SECRET 
       : process.env.REFRESH_TOKEN_SECRET;
-      
-    return jwt.verify(refreshToken, secret);
+    
+    logger.debug(`Verifying JWT signature with ${decoded.isAdmin ? 'admin' : 'standard'} secret`);
+    const verified = jwt.verify(refreshToken, secret);
+    logger.debug('JWT signature verification successful');
+    
+    return verified;
     
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
+      logger.warn('Refresh token has expired', { token: refreshToken });
       throw new Error('Refresh token has expired');
     }
-    logger.error(`Lỗi khi xác minh refresh token: ${error.message}`);
+    logger.error(`Lỗi khi xác minh refresh token: ${error.message}`, {
+      errorName: error.name,
+      stack: error.stack,
+      tokenFragment: refreshToken ? refreshToken.substring(0, 20) + '...' : 'undefined'
+    });
     throw error;
   }
 };

@@ -156,6 +156,7 @@ const handleRefreshToken = async (req, res) => {
     const { accessToken } = await AuthService.handleRefreshToken(refreshToken);
     res.status(200).json({ accessToken });
   } catch (e) {
+    logger.error('Refresh token error:', e);
     res.status(e.status || 500).json({ message: e.message });
   }
 }
