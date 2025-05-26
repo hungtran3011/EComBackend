@@ -7,17 +7,17 @@ const logger = debugLogger("order-service");
 /**
  * Get all orders - admins see all orders, customers see their own
  * @param {string} status - Optional filter by status
- * @param {Object} user - User object
+ * @param {Object} user - User object from req.user.user
  * @param {number} page - Page number for pagination
  * @param {number} limit - Number of orders per page
  * @returns {Promise<Object>} List of orders with pagination info
  */
 const getAllOrders = async (status, user, page = 1, limit = 10) => {
-  logger.debug(`getAllOrders: Starting to fetch orders for user ${user?.id || 'unknown'} with role ${user?.role || 'unknown'}`);
+  logger.debug(`getAllOrders: Starting with user ID: ${user?.id || 'unknown'}, role: ${user?.role || 'unknown'}`);
   
-  // Check if user object is valid
-  if (!user || (!user.id && !user._id)) {
-    logger.error('getAllOrders: Invalid user object provided');
+  // Validate user object
+  if (!user || !user.id) {
+    logger.error('getAllOrders: Invalid or missing user object');
     throw new Error("Invalid user information provided");
   }
   
@@ -33,39 +33,52 @@ const getAllOrders = async (status, user, page = 1, limit = 10) => {
     throw new Error("Invalid status value provided");
   }
   
-  // If not admin, only show user's own orders
+  // Role-based access control
   if (user.role !== "admin") {
-    // Use ObjectId or string based on what's available
-    const userId = user.id || user._id;
-    // Convert to string to avoid type issues
-    query.user = userId.toString();
-    logger.debug(`getAllOrders: Filtering by user ID: ${userId}`);
+    // Customer - only see their own orders
+    query.user = user.id; // Use the ID directly from user object
+    logger.debug(`getAllOrders: Customer role - filtering by user ID: ${user.id}`);
   } else {
-    logger.debug('getAllOrders: Admin user - showing all orders');
+    // Admin - see all orders
+    logger.debug('getAllOrders: Admin role - showing all orders');
   }
   
   try {
-    // Convert page and limit to numbers with defaults
+    // Convert pagination parameters
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
     
-    logger.debug(`getAllOrders: Pagination settings - page: ${pageNum}, limit: ${limitNum}, skip: ${skip}`);
-    logger.debug(`getAllOrders: Executing query: ${JSON.stringify(query)}`);
+    logger.debug(`getAllOrders: Pagination - page: ${pageNum}, limit: ${limitNum}, skip: ${skip}`);
+    logger.debug(`getAllOrders: Query: ${JSON.stringify(query)}`);
     
-    // Get total count for pagination info
+    // Get total count first
     const total = await OrderModel.countDocuments(query);
     logger.debug(`getAllOrders: Total matching orders: ${total}`);
     
-    // Query with pagination
+    // No records found
+    if (total === 0) {
+      logger.debug('getAllOrders: No orders found matching criteria');
+      return {
+        orders: [],
+        pagination: {
+          total: 0,
+          page: pageNum,
+          limit: limitNum,
+          pages: 0
+        }
+      };
+    }
+    
+    // Execute the query with pagination
     const orders = await OrderModel.find(query)
       .populate("user", "email name")
       .populate("items.product", "name price productImages")
-      .sort({ createdAt: -1 })  // Sort by newest first
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limitNum);
     
-    logger.debug(`getAllOrders: Retrieved ${orders.length} orders`);
+    logger.debug(`getAllOrders: Retrieved ${orders.length} orders successfully`);
     
     // Return properly structured response
     return {
@@ -78,7 +91,7 @@ const getAllOrders = async (status, user, page = 1, limit = 10) => {
       }
     };
   } catch (error) {
-    logger.error(`getAllOrders: Database query failed: ${error.message}`);
+    logger.error(`getAllOrders: Database error: ${error.message}`);
     throw new Error(`Failed to retrieve orders: ${error.message}`);
   }
 };

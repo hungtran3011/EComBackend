@@ -89,6 +89,16 @@ const signIn = async (credentials) => {
     throw { status: 404, message: "Không tìm thấy người dùng" };
   }
 
+  // Block admin users from using the regular sign-in
+  if (user.role === "admin") {
+    logger.warn(`signIn: Admin user ${user.email || user.phoneNumber} attempted to log in through customer portal`);
+    throw { 
+      status: 403, 
+      message: "Tài khoản admin không thể đăng nhập qua cổng khách hàng. Vui lòng sử dụng trang đăng nhập admin.",
+      isAdminAccount: true
+    };
+  }
+
   const isValidPassword = await bcrypt.compare(password, user.password);
   
   if (!isValidPassword) {
